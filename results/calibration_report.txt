@@ -1,0 +1,10 @@
+﻿Blink Calibration Report
+========================================
+
+Exec Time:
+  Coverage  : 72.3%  (OVER-CONFIDENT)
+  Avg width : 0.7
+
+Memory:
+  Coverage  : 78.5%  (WELL CALIBRATED)
+  Avg width : 559.5

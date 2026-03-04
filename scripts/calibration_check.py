@@ -1,7 +1,7 @@
 ﻿"""
 scripts/calibration_check.py  —  Priority 2: Interval Calibration
 
-Checks whether the 80% confidence intervals produced by NeuSight's
+Checks whether the 80% confidence intervals produced by Blink's
 quantile regression models actually contain 80% of real measurements.
 
 Generates:
@@ -97,7 +97,7 @@ def plot_reliability_diagram(results, save_path):
       - Per-architecture coverage breakdown (exec time)
     """
     fig, axes = plt.subplots(1, 3, figsize=(16, 5))
-    fig.suptitle('NeuSight — 80% Confidence Interval Calibration (Priority 2)',
+    fig.suptitle('Blink — 80% Confidence Interval Calibration (Priority 2)',
                  fontsize=13, fontweight='bold')
 
     targets  = [r['label'] for r in results]
@@ -157,7 +157,7 @@ def plot_reliability_diagram(results, save_path):
 
 def main():
     print("=" * 60)
-    print("NeuSight — Confidence Interval Calibration (Priority 2)")
+    print("Blink — Confidence Interval Calibration (Priority 2)")
     print("=" * 60)
 
     df = load_data()
@@ -206,7 +206,7 @@ def main():
     # ── Write text report ─────────────────────────────────────────────────────
     report_path = os.path.join(RESULTS, 'calibration_report.txt')
     with open(report_path, 'w') as f:
-        f.write("NeuSight Calibration Report\n")
+        f.write("Blink Calibration Report\n")
         f.write("=" * 40 + "\n")
         for r in results:
             status = 'WELL CALIBRATED' if abs(r['coverage'] - 0.80) < 0.05 else \

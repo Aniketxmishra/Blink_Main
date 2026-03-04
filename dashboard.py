@@ -66,7 +66,7 @@ def create_sample_model(num_layers=3, channels=16):
 # Main app
 def main():
     st.set_page_config(
-        page_title="GPU Usage Prediction Dashboard", 
+        page_title="Blink — GPU Performance Predictor", 
         layout="wide",
         initial_sidebar_state="expanded"
     )
@@ -77,7 +77,7 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        st.title("GPU Usage Prediction")
+        st.title("Blink")
         
         # Navigation
         page = st.radio("Navigation", [
@@ -113,7 +113,7 @@ def main():
         show_about_page()
 
 def show_prediction_page(predictor, analyzer):
-    st.title("GPU Usage Prediction")
+    st.title("Blink — GPU Performance Predictor")
     
     col1, col2 = st.columns([2, 1])
     
@@ -1017,12 +1017,12 @@ def show_performance_monitor():
         st.plotly_chart(fig, use_container_width=True)
 
 def show_about_page():
-    st.title("About GPU Usage Prediction System")
+    st.title("About Blink")
     
     st.markdown("""
     ## Overview
     
-    This scalable GPU usage prediction system provides accurate estimates of execution time for deep learning models without requiring actual execution on GPU hardware. It uses machine learning to predict performance based on model architecture characteristics.
+    **Blink** is a GPU performance prediction suite that provides accurate estimates of execution time and memory usage for PyTorch deep learning models — without running them on a GPU. It combines classical ML (XGBoost, Random Forest) with a Graph Neural Network (GNN) that encodes the model's computation graph.
     
     ## Key Features
     
@@ -1058,7 +1058,7 @@ def show_calibration_page():
     """Priority 2: Confidence Interval Calibration"""
     st.title("Confidence Interval Calibration")
     st.markdown("""
-    Checks whether the **80% confidence intervals** produced by NeuSight's
+    Checks whether the **80% confidence intervals** produced by Blink's
     quantile regression models actually contain ~80% of real measurements.
     """)
 
@@ -1108,7 +1108,7 @@ def show_calibration_page():
         - **Coverage < 80%**: Over-confident intervals (too narrow).
         - **Coverage > 80%**: Conservative intervals (too wide).
 
-        NeuSight uses **quantile regression** (10th/90th percentile XGBoost)
+        Blink uses **quantile regression** (10th/90th percentile XGBoost)
         to produce CI bounds. This page verifies them against real measurements.
         """)
 

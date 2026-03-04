@@ -1,1 +1,1 @@
-# NeuSight REST API package
+﻿# Blink REST API package

@@ -1,7 +1,7 @@
-"""
-api/main.py — NeuSight REST API
+﻿"""
+api/main.py — Blink REST API
 ================================
-Exposes NeuSight's prediction and optimization capabilities over HTTP so any
+Exposes Blink's prediction and optimization capabilities over HTTP so any
 language / service can consume them without importing Python.
 
 Start with:
@@ -38,17 +38,17 @@ from api.schemas import (
 # ─────────────────────────────────────────────────────────────────────────────
 # App bootstrap
 # ─────────────────────────────────────────────────────────────────────────────
-logger = logging.getLogger("neusight.api")
+logger = logging.getLogger("Blink.api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 app = FastAPI(
-    title="NeuSight GPU Prediction API",
+    title="Blink GPU Prediction API",
     description=(
         "Predict GPU execution time, memory usage, and optimal batch sizes "
         "for PyTorch models — without running them on a GPU."
     ),
     version="2.0.0",
-    contact={"name": "NeuSight", "url": "https://github.com/Aniketxmishra/Blink_Main"},
+    contact={"name": "Blink", "url": "https://github.com/Aniketxmishra/Blink_Main"},
 )
 
 app.add_middleware(
@@ -193,7 +193,7 @@ async def add_timing_header(request: Request, call_next):
 
 @app.get("/", include_in_schema=False)
 def root():
-    return {"message": "NeuSight GPU Prediction API v2 — see /docs for usage"}
+    return {"message": "Blink GPU Prediction API v2 — see /docs for usage"}
 
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])

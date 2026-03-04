@@ -1,4 +1,4 @@
-"""
+﻿"""
 train_memory_model.py  —  Activation-Aware Memory Model Training
 
 Key fix (Priority 1):
@@ -250,7 +250,7 @@ def save_feature_list(feature_cols, path='models/memory_model_features.json'):
 
 def main():
     print("=" * 60)
-    print("NeuSight Memory Model — Priority 1 Retrain")
+    print("Blink Memory Model — Priority 1 Retrain")
     print("New features: activation_memory_mb, weight_memory_mb,")
     print("              activation_memory_per_sample, flops_per_activation_mb")
     print("=" * 60)

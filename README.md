@@ -1,7 +1,7 @@
-# NeuSight 🔭
+﻿# Blink 🔭
 > **GPU Performance Predictor for Deep Learning Models**
 
-NeuSight predicts **execution time** and **memory usage** of PyTorch neural networks on GPU without actually running them. It combines classical ML (XGBoost, Random Forest) with a Graph Neural Network (GNN) that encodes the computational graph of any model architecture.
+Blink predicts **execution time** and **memory usage** of PyTorch neural networks on GPU without actually running them. It combines classical ML (XGBoost, Random Forest) with a Graph Neural Network (GNN) that encodes the computational graph of any model architecture.
 
 ---
 
@@ -20,7 +20,7 @@ NeuSight predicts **execution time** and **memory usage** of PyTorch neural netw
 
 ## Overview
 
-Given a PyTorch model and a batch size, NeuSight answers:
+Given a PyTorch model and a batch size, Blink answers:
 - *How long will a forward pass take on this GPU?*
 - *How much GPU memory will it consume?*
 
@@ -62,7 +62,7 @@ PyTorch Model
 ## Project Structure
 
 ```
-neusight/
+Blink/
 ├── dashboard.py             # 🖥️  Main Streamlit web app  (run this)
 ├── prediction_api.py        # 🌐  Flask REST API
 │
@@ -129,7 +129,7 @@ neusight/
 ```bash
 # 1. Clone the repo
 git clone <your-repo-url>
-cd neusight
+cd Blink
 
 # 2. Create a virtual environment
 python -m venv venv

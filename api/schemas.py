@@ -1,5 +1,5 @@
-"""
-api/schemas.py — Pydantic request / response models for NeuSight REST API
+﻿"""
+api/schemas.py — Pydantic request / response models for Blink REST API
 """
 from __future__ import annotations
 from typing import Optional, List, Dict, Any

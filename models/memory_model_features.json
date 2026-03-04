@@ -1,0 +1,22 @@
+{
+  "features": [
+    "activation_memory_mb",
+    "weight_memory_mb",
+    "activation_memory_per_sample",
+    "flops_per_activation_mb",
+    "batch_size",
+    "flops",
+    "compute_memory_ratio",
+    "model_size_mb",
+    "num_conv_layers",
+    "num_fc_layers",
+    "num_bn_layers",
+    "avg_conv_kernel_size",
+    "max_conv_channels",
+    "total_conv_params",
+    "total_fc_params",
+    "model_depth",
+    "input_resolution_factor"
+  ],
+  "version": "v2_activation_aware"
+}
