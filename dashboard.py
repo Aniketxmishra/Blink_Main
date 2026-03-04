@@ -398,8 +398,8 @@ def show_batch_optimizer(predictor, analyzer, memory_limit):
             else:
                 model = models.densenet121(weights=None)
         
-        min_batch = st.number_input("Minimum Batch Size", 1, 64, 1)
-        max_batch = st.number_input("Maximum Batch Size", min_batch, 512, 128)
+        min_batch = st.number_input("Minimum Batch Size", min_value=1, max_value=64, value=1)
+        max_batch = st.number_input("Maximum Batch Size", min_value=1, max_value=512, value=128)
         
         if st.button("Find Optimal Batch Size"):
             with st.spinner("Analyzing model and finding optimal batch size..."):
@@ -414,107 +414,111 @@ def show_batch_optimizer(predictor, analyzer, memory_limit):
                     memory_limit_mb=memory_limit
                 )
                 
-                # Display results
-                st.subheader("Optimization Results")
+                # Guard: all batch sizes exceeded memory
+                if optimization_result.get('error'):
+                    st.error(optimization_result['error'])
+                else:
+                    # Create detailed results dataframe
+                    batch_results = pd.DataFrame(optimization_result['batch_results'])
+
+                    # Display metrics
+                    st.subheader("Optimization Results")
+                    metric_col1, metric_col2, metric_col3 = st.columns(3)
+                    with metric_col1:
+                        st.metric("Optimal Batch Size", optimization_result['optimal_batch_size'])
+                    with metric_col2:
+                        exec_val = optimization_result['predicted_execution_time']
+                        st.metric("Execution Time", f"{exec_val:.2f} ms" if exec_val is not None else "N/A")
+                    with metric_col3:
+                        mem_val = optimization_result['estimated_memory_usage']
+                        st.metric("Memory Usage", f"{mem_val:.2f} MB" if mem_val is not None else "N/A")
                 
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Optimal Batch Size", optimization_result['optimal_batch_size'])
-                with col2:
-                    st.metric("Execution Time", f"{optimization_result['predicted_execution_time']:.2f} ms")
-                with col3:
-                    st.metric("Memory Usage", f"{optimization_result['estimated_memory_usage']:.2f} MB")
-                
-                # Create detailed results dataframe
-                batch_results = pd.DataFrame(optimization_result['batch_results'])
-                
-                # Plot results
-                fig = make_subplots(
-                    rows=2, cols=1,
-                    subplot_titles=("Execution Time vs Batch Size", "Throughput vs Batch Size"),
-                    shared_xaxes=True,
-                    vertical_spacing=0.1
-                )
-                
-                # Add execution time trace with uncertainty band
-                # Create upper and lower bound arrays
-                x_values = batch_results['batch_size'].tolist()
-                x_rev = x_values[::-1]
-                
-                # Execution bounds
-                y_upper = batch_results['exec_upper_ms'].tolist()
-                y_lower = batch_results['exec_lower_ms'].tolist()
-                y_lower_rev = y_lower[::-1]
-                
-                fig.add_trace(
-                    go.Scatter(
-                        x=x_values + x_rev,
-                        y=y_upper + y_lower_rev,
-                        fill='toself',
-                        fillcolor='rgba(0,100,80,0.2)',
-                        line_color='rgba(255,255,255,0)',
-                        showlegend=False,
-                        name='Execution Time 80% CI'
-                    ),
-                    row=1, col=1
-                )
-                
-                fig.add_trace(
-                    go.Scatter(
-                        x=batch_results['batch_size'],
-                        y=batch_results['exec_time_ms'],
-                        mode='lines+markers',
-                        name='Execution Time (ms)',
-                        line_color='rgb(0,100,80)'
-                    ),
-                    row=1, col=1
-                )
-                
-                # Add throughput trace
-                fig.add_trace(
-                    go.Scatter(
-                        x=batch_results['batch_size'],
-                        y=batch_results['throughput'],
-                        mode='lines+markers',
-                        name='Throughput (samples/s)'
-                    ),
-                    row=2, col=1
-                )
-                
-                # Add optimal batch size marker
-                optimal_batch = optimization_result['optimal_batch_size']
-                fig.add_vline(
-                    x=optimal_batch, 
-                    line_dash="dash", 
-                    line_color="green",
-                    annotation_text=f"Optimal: {optimal_batch}",
-                    annotation_position="top right",
-                    row=1, col=1
-                )
-                
-                fig.add_vline(
-                    x=optimal_batch, 
-                    line_dash="dash", 
-                    line_color="green",
-                    row=2, col=1
-                )
-                
-                # Update layout
-                fig.update_layout(
-                    height=600,
-                    title=f"Batch Size Optimization for {model_name}",
-                    showlegend=False
-                )
-                
-                fig.update_xaxes(title_text="Batch Size", row=2, col=1)
-                fig.update_yaxes(title_text="Execution Time (ms)", row=1, col=1)
-                fig.update_yaxes(title_text="Throughput (samples/s)", row=2, col=1)
-                
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Show detailed results
-                st.subheader("Detailed Results")
-                st.dataframe(batch_results)
+                    # Plot results
+                    fig = make_subplots(
+                        rows=2, cols=1,
+                        subplot_titles=("Execution Time vs Batch Size", "Throughput vs Batch Size"),
+                        shared_xaxes=True,
+                        vertical_spacing=0.1
+                    )
+                    
+                    # Add execution time trace with uncertainty band
+                    # Create upper and lower bound arrays
+                    x_values = batch_results['batch_size'].tolist()
+                    x_rev = x_values[::-1]
+                    
+                    # Execution bounds
+                    y_upper = batch_results['exec_upper_ms'].tolist()
+                    y_lower = batch_results['exec_lower_ms'].tolist()
+                    y_lower_rev = y_lower[::-1]
+                    
+                    fig.add_trace(
+                        go.Scatter(
+                            x=x_values + x_rev,
+                            y=y_upper + y_lower_rev,
+                            fill='toself',
+                            fillcolor='rgba(0,100,80,0.2)',
+                            line_color='rgba(255,255,255,0)',
+                            showlegend=False,
+                            name='Execution Time 80% CI'
+                        ),
+                        row=1, col=1
+                    )
+                    
+                    fig.add_trace(
+                        go.Scatter(
+                            x=batch_results['batch_size'],
+                            y=batch_results['exec_time_ms'],
+                            mode='lines+markers',
+                            name='Execution Time (ms)',
+                            line_color='rgb(0,100,80)'
+                        ),
+                        row=1, col=1
+                    )
+                    
+                    # Add throughput trace
+                    fig.add_trace(
+                        go.Scatter(
+                            x=batch_results['batch_size'],
+                            y=batch_results['throughput'],
+                            mode='lines+markers',
+                            name='Throughput (samples/s)'
+                        ),
+                        row=2, col=1
+                    )
+                     
+                    # Optimal batch size marker — use shapes (add_vline doesn't support row/col in subplots)
+                    optimal_batch = optimization_result['optimal_batch_size']
+                    for row_idx in [1, 2]:
+                        fig.add_shape(
+                            type='line',
+                            x0=optimal_batch, x1=optimal_batch,
+                            y0=0, y1=1,
+                            yref='paper',
+                            xref='x',
+                            line=dict(color='green', dash='dash'),
+                            row=row_idx, col=1
+                        )
+
+                    fig.add_annotation(
+                        x=optimal_batch, y=1, yref='paper',
+                        text=f"Optimal: {optimal_batch}",
+                        showarrow=False, xanchor='left',
+                        font=dict(color='green')
+                    )
+
+                    fig.update_layout(
+                        height=600,
+                        title=f"Batch Size Optimization for {model_name}",
+                        showlegend=False
+                    )
+                    fig.update_xaxes(title_text="Batch Size", row=2, col=1)
+                    fig.update_yaxes(title_text="Execution Time (ms)", row=1, col=1)
+                    fig.update_yaxes(title_text="Throughput (samples/s)", row=2, col=1)
+
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    st.subheader("Detailed Results")
+                    st.dataframe(batch_results)
     
     with col2:
         st.subheader("Optimization Strategy")

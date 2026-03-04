@@ -239,42 +239,57 @@ class GPUPredictor:
             "hit_rate": hit_rate
         }
     
-    def optimize_batch_size(self, model_features, min_batch=1, max_batch=32, memory_limit_mb=8000):
-        """Find optimal batch size for throughput within memory constraints"""
+    def optimize_batch_size(self, model_features, min_batch=1, max_batch=128, memory_limit_mb=8000):
+        """Find optimal batch size for throughput within memory constraints.
+
+        Samples candidate batch sizes using powers-of-2 within the given range,
+        plus the exact min/max values so the full range endpoints are always tested.
+        This reduces worst-case iterations from O(max_batch) to O(log2(max_batch)).
+        """
+        # Build candidate batch sizes: powers-of-2 within [min_batch, max_batch]
+        candidates = set()
+        candidates.add(min_batch)
+        candidates.add(max_batch)
+        b = 1
+        while b <= max_batch:
+            if b >= min_batch:
+                candidates.add(b)
+            b *= 2
+        candidates = sorted(candidates)
+
         best_throughput = 0
         optimal_batch = min_batch
-        
-        # Test different batch sizes
         batch_results = []
-        for batch_size in range(min_batch, max_batch + 1):
+
+        for batch_size in candidates:
             features = model_features.copy()
             features['batch_size'] = batch_size
-            
+
             prediction_payload = self.predict(features)
-            exec_time = prediction_payload['exec_time_ms']
+            exec_time = max(prediction_payload['exec_time_ms'], 0.001)  # Guard div-by-zero
             exec_lower = prediction_payload['exec_time_lower']
             exec_upper = prediction_payload['exec_time_upper']
-            
+
             # Get memory usage
             if self.has_memory_model:
                 memory_usage = prediction_payload['memory_usage_mb']
                 memory_lower = prediction_payload['memory_lower_mb']
                 memory_upper = prediction_payload['memory_upper_mb']
             else:
-                # Fallback heuristic
-                base_memory = model_features.get('model_size_mb', 0)
-                mem_scale_factor = 0.5 if model_features.get('total_parameters', 0) > 100000000 else 0.3
+                # Fallback heuristic: model weights + activations scale linearly with batch
+                base_memory = model_features.get('model_size_mb', 0) or 0
+                mem_scale_factor = 0.5 if model_features.get('total_parameters', 0) > 100_000_000 else 0.3
                 memory_usage = base_memory + (base_memory * mem_scale_factor * batch_size)
                 memory_lower = memory_usage * 0.9
                 memory_upper = memory_usage * 1.1
-            
-            # Skip if exceeds memory limit
+
+            # Skip batch sizes that exceed memory budget
             if memory_usage > memory_limit_mb:
                 continue
-                
-            # Calculate throughput (samples/second)
-            throughput = (batch_size * 1000) / exec_time
-            
+
+            # Throughput = samples processed per second
+            throughput = (batch_size * 1000.0) / exec_time
+
             batch_results.append({
                 'batch_size': batch_size,
                 'exec_time_ms': exec_time,
@@ -285,19 +300,33 @@ class GPUPredictor:
                 'memory_lower_mb': memory_lower,
                 'memory_upper_mb': memory_upper
             })
-            
-            # Update optimal if better
+
             if throughput > best_throughput:
                 best_throughput = throughput
                 optimal_batch = batch_size
-        
+
+        # Guard: if every batch size exceeded memory, return a safe fallback
+        if not batch_results:
+            return {
+                'optimal_batch_size': min_batch,
+                'predicted_execution_time': None,
+                'exec_lower_ms': None,
+                'exec_upper_ms': None,
+                'estimated_memory_usage': None,
+                'memory_lower_mb': None,
+                'memory_upper_mb': None,
+                'batch_results': [],
+                'error': 'All batch sizes exceed the memory limit. Increase memory limit or reduce max batch size.'
+            }
+
+        optimal_row = next((r for r in batch_results if r['batch_size'] == optimal_batch), batch_results[0])
         return {
             'optimal_batch_size': optimal_batch,
-            'predicted_execution_time': next((r['exec_time_ms'] for r in batch_results if r['batch_size'] == optimal_batch), None),
-            'exec_lower_ms': next((r['exec_lower_ms'] for r in batch_results if r['batch_size'] == optimal_batch), None),
-            'exec_upper_ms': next((r['exec_upper_ms'] for r in batch_results if r['batch_size'] == optimal_batch), None),
-            'estimated_memory_usage': next((r['memory_usage_mb'] for r in batch_results if r['batch_size'] == optimal_batch), None),
-            'memory_lower_mb': next((r['memory_lower_mb'] for r in batch_results if r['batch_size'] == optimal_batch), None),
-            'memory_upper_mb': next((r['memory_upper_mb'] for r in batch_results if r['batch_size'] == optimal_batch), None),
+            'predicted_execution_time': optimal_row['exec_time_ms'],
+            'exec_lower_ms': optimal_row['exec_lower_ms'],
+            'exec_upper_ms': optimal_row['exec_upper_ms'],
+            'estimated_memory_usage': optimal_row['memory_usage_mb'],
+            'memory_lower_mb': optimal_row['memory_lower_mb'],
+            'memory_upper_mb': optimal_row['memory_upper_mb'],
             'batch_results': batch_results
         }
