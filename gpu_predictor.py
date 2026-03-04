@@ -319,57 +319,34 @@ class GPUPredictor:
 
         batch_results.sort(key=lambda x: x['batch_size'])
 
-        if len(batch_results) == 1:
-            optimal_row = batch_results[0]
-        else:
-            # ── Optimal batch: maximize throughput-efficiency ────────────────
-            # throughput = samples/sec; memory_usage grows with batch size.
-            # Pure argmax(throughput) always picks max_batch because GPU exec
-            # time scales sub-linearly (parallelism). Instead we maximize:
-            #
-            #   efficiency = throughput / memory_mb
-            #
-            # This is the metric that captures: "how many samples/sec per MB
-            # of GPU memory spent?" — giving diminishing returns at large batches
-            # where memory cost dominates.
+        # ── Activation-memory corrected efficiency ──────────────────────────
+        # Problem: the trained memory model predicts near-flat memory vs batch
+        # size (it only learned model-weight memory, not activation memory).
+        # Activation memory scales linearly: ~2 * params * bytes_per_element
+        # per sample in the forward pass.
+        #
+        # We estimate activation_mb_per_sample from model_size_mb:
+        #   activations ≈ 50% of param memory per sample (empirical for CNNs)
+        # Then: corrected_memory = max(predicted_memory, base + bs * act_cost)
+        # This forces realistic memory growth even when the model under-predicts.
 
-            for r in batch_results:
-                mem = max(r['memory_usage_mb'], 1.0)  # avoid div-by-zero
-                r['efficiency'] = r['throughput'] / mem
+        model_size_mb = model_features.get('model_size_mb', 0) or 0
+        # Activation heuristic: ~0.5 MB per sample per MB of param memory
+        # (conservative lower bound; real activation memory can be 2-5x this)
+        activation_cost_per_sample = max(model_size_mb * 0.5, 1.0)  # MB / sample
 
-            # Pick the batch with the best efficiency
-            best_eff_row = max(batch_results, key=lambda r: r['efficiency'])
+        base_mem = batch_results[0]['memory_usage_mb'] if batch_results else 0
 
-            # Secondary check: if a LARGER batch has only marginally better raw
-            # throughput (< 5% gain) vs. the efficiency winner, prefer the
-            # efficiency winner for memory headroom.
-            max_tp_row = max(batch_results, key=lambda r: r['throughput'])
-            tp_gain = (max_tp_row['throughput'] - best_eff_row['throughput']) \
-                      / max(best_eff_row['throughput'], 1e-9)
+        for r in batch_results:
+            bs = r['batch_size']
+            predicted_mem = r['memory_usage_mb']
+            # Corrected = at least base + linear activation growth
+            activation_mem = base_mem + activation_cost_per_sample * (bs - batch_results[0]['batch_size'])
+            corrected_mem  = max(predicted_mem, activation_mem, 1.0)
+            r['corrected_memory_mb'] = corrected_mem
+            r['efficiency'] = r['throughput'] / corrected_mem
 
-            if tp_gain < 0.05:
-                # Max-throughput batch gives < 5% throughput gain — not worth it
-                optimal_row = best_eff_row
-            else:
-                # Significant gain available: pick halfway between efficiency
-                # knee and max-throughput using a weighted efficiency score
-                # (90% efficiency + 10% normalized throughput)
-                tp_vals = np.array([r['throughput'] for r in batch_results])
-                tp_min, tp_max = tp_vals.min(), tp_vals.max()
-                tp_range = max(tp_max - tp_min, 1e-9)
-
-                eff_vals = np.array([r['efficiency'] for r in batch_results])
-                eff_min, eff_max = eff_vals.min(), eff_vals.max()
-                eff_range = max(eff_max - eff_min, 1e-9)
-
-                scored = []
-                for r in batch_results:
-                    tp_norm  = (r['throughput']  - tp_min)  / tp_range
-                    eff_norm = (r['efficiency']  - eff_min) / eff_range
-                    score    = 0.4 * tp_norm + 0.6 * eff_norm
-                    scored.append((score, r))
-
-                optimal_row = max(scored, key=lambda x: x[0])[1]
+        optimal_row = max(batch_results, key=lambda r: r['efficiency'])
 
         return {
             'optimal_batch_size': optimal_row['batch_size'],
