@@ -707,67 +707,192 @@ def show_model_comparison():
         This metric helps identify models with good architecture design that maximizes parameter utilization.
         """)
 
+def _get_gpu_stats():
+    """Fetch live GPU stats via pynvml. Returns dict or None if unavailable."""
+    try:
+        import pynvml
+        pynvml.nvmlInit()
+        handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+        mem    = pynvml.nvmlDeviceGetMemoryInfo(handle)
+        util   = pynvml.nvmlDeviceGetUtilizationRates(handle)
+        temp   = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
+        try:
+            power_mw = pynvml.nvmlDeviceGetPowerUsage(handle)
+            power_w  = power_mw / 1000.0
+        except Exception:
+            power_w = None
+        try:
+            power_limit_mw = pynvml.nvmlDeviceGetPowerManagementLimit(handle)
+            power_limit_w  = power_limit_mw / 1000.0
+        except Exception:
+            power_limit_w = None
+        name = pynvml.nvmlDeviceGetName(handle)
+        return {
+            'name':        name,
+            'util_gpu':    util.gpu,
+            'util_mem':    util.memory,
+            'mem_used_mb': mem.used  / 1024**2,
+            'mem_free_mb': mem.free  / 1024**2,
+            'mem_total_mb':mem.total / 1024**2,
+            'temp_c':      temp,
+            'power_w':     power_w,
+            'power_limit_w': power_limit_w,
+        }
+    except Exception:
+        return None
+
+
 def show_performance_monitor():
     st.title("Performance Monitor")
-    
-    # Create tabs
-    tab1, tab2 = st.tabs(["Prediction Accuracy", "Cache Performance"])
-    
-    with tab1:
+
+    tab_gpu, tab_acc, tab_cache = st.tabs(["GPU Monitor", "Prediction Accuracy", "Cache Performance"])
+
+    # ── Tab 1: Live GPU Monitor ───────────────────────────────────────────────
+    with tab_gpu:
+        st.subheader("Live GPU Statistics")
+
+        stats = _get_gpu_stats()
+
+        if stats is None:
+            st.warning("pynvml could not read GPU stats. "
+                       "Install `nvidia-ml-py` or ensure NVIDIA drivers are present.")
+        else:
+            st.caption(f"Device: **{stats['name']}**")
+
+            # ── Big metric cards ──────────────────────────────────────────────
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                color = "normal" if stats['util_gpu'] < 80 else "inverse"
+                st.metric("GPU Utilization", f"{stats['util_gpu']} %",
+                          delta=None)
+                # manual color bar
+                util_frac = stats['util_gpu'] / 100
+                bar_color = "#2ecc71" if util_frac < 0.7 else "#e67e22" if util_frac < 0.9 else "#e74c3c"
+                st.markdown(
+                    f'<div style="background:#333;border-radius:4px;height:8px;">'
+                    f'<div style="background:{bar_color};width:{util_frac*100:.0f}%;height:8px;border-radius:4px;"></div>'
+                    f'</div>', unsafe_allow_html=True
+                )
+            with c2:
+                vram_pct = stats['mem_used_mb'] / stats['mem_total_mb'] * 100
+                st.metric("VRAM Used",
+                          f"{stats['mem_used_mb']:.0f} MB",
+                          delta=f"{vram_pct:.1f}% of {stats['mem_total_mb']:.0f} MB")
+                bar_color = "#2ecc71" if vram_pct < 70 else "#e67e22" if vram_pct < 90 else "#e74c3c"
+                st.markdown(
+                    f'<div style="background:#333;border-radius:4px;height:8px;">'
+                    f'<div style="background:{bar_color};width:{vram_pct:.0f}%;height:8px;border-radius:4px;"></div>'
+                    f'</div>', unsafe_allow_html=True
+                )
+            with c3:
+                temp_c = stats['temp_c']
+                temp_color = "#2ecc71" if temp_c < 70 else "#e67e22" if temp_c < 85 else "#e74c3c"
+                st.metric("Temperature", f"{temp_c} °C")
+                st.markdown(
+                    f'<div style="background:#333;border-radius:4px;height:8px;">'
+                    f'<div style="background:{temp_color};width:{min(temp_c,100):.0f}%;height:8px;border-radius:4px;"></div>'
+                    f'</div>', unsafe_allow_html=True
+                )
+            with c4:
+                if stats['power_w'] is not None:
+                    pw_label = f"{stats['power_w']:.1f} W"
+                    pw_delta = (f"/ {stats['power_limit_w']:.0f} W TDP"
+                                if stats['power_limit_w'] else None)
+                    st.metric("Power Draw", pw_label, delta=pw_delta)
+                else:
+                    st.metric("Power Draw", "N/A")
+
+            st.divider()
+
+            # ── History chart ─────────────────────────────────────────────────
+            if 'gpu_history' not in st.session_state:
+                st.session_state.gpu_history = []
+
+            now = pd.Timestamp.now()
+            st.session_state.gpu_history.append({
+                'time':      now,
+                'util_gpu':  stats['util_gpu'],
+                'util_mem':  stats['util_mem'],
+                'vram_mb':   stats['mem_used_mb'],
+                'temp_c':    stats['temp_c'],
+                'power_w':   stats['power_w'] or 0,
+            })
+            # Keep last 60 readings
+            st.session_state.gpu_history = st.session_state.gpu_history[-60:]
+            hist = pd.DataFrame(st.session_state.gpu_history)
+
+            fig = make_subplots(rows=2, cols=2,
+                subplot_titles=("GPU Utilization (%)", "VRAM Used (MB)",
+                                "Temperature (°C)", "Power Draw (W)"),
+                vertical_spacing=0.15, horizontal_spacing=0.1)
+
+            def add_line(fig, row, col, x, y, name, color):
+                fig.add_trace(go.Scatter(x=x, y=y, mode='lines+markers',
+                    name=name, line=dict(color=color, width=2),
+                    marker=dict(size=4)), row=row, col=col)
+
+            add_line(fig, 1, 1, hist['time'], hist['util_gpu'],  'GPU Util %',  '#3498db')
+            add_line(fig, 1, 2, hist['time'], hist['vram_mb'],   'VRAM MB',     '#9b59b6')
+            add_line(fig, 2, 1, hist['time'], hist['temp_c'],    'Temp C',      '#e74c3c')
+            add_line(fig, 2, 2, hist['time'], hist['power_w'],   'Power W',     '#f39c12')
+
+            fig.update_layout(
+                height=420, showlegend=False,
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#ccc'),
+                margin=dict(l=10, r=10, t=30, b=10)
+            )
+            for i in range(1, 3):
+                for j in range(1, 3):
+                    fig.update_xaxes(showgrid=True, gridcolor='#333', row=i, col=j)
+                    fig.update_yaxes(showgrid=True, gridcolor='#333', row=i, col=j)
+
+            st.plotly_chart(fig, use_container_width=True)
+
+            # ── Auto-refresh slider ───────────────────────────────────────────
+            refresh_s = st.slider("Auto-refresh interval (seconds)", 2, 30, 5,
+                                  key="gpu_refresh_interval")
+            if st.button("Refresh Now", key="gpu_refresh_btn"):
+                st.rerun()
+            st.caption(f"Last updated: {now.strftime('%H:%M:%S')}  •  "
+                       f"Auto-refresh: every {refresh_s}s  •  "
+                       "Click 'Refresh Now' or change any widget to update.")
+
+            # Inject JS auto-refresh
+            st.components.v1.html(
+                f"<script>setTimeout(function(){{window.location.reload();}}, "
+                f"{refresh_s * 1000});</script>",
+                height=0
+            )
+
+    # ── Tab 2: Prediction Accuracy ────────────────────────────────────────────
+    with tab_acc:
         st.subheader("Prediction Accuracy Analysis")
-        
-        # Load feedback data if available
         feedback_path = 'data/feedback_log.csv'
         if os.path.exists(feedback_path):
             feedback_df = pd.read_csv(feedback_path)
-            
             if not feedback_df.empty:
-                # Create accuracy plot
                 fig = go.Figure()
-                
                 fig.add_trace(go.Scatter(
-                    x=feedback_df['timestamp'],
-                    y=feedback_df['error_percent'],
-                    mode='lines+markers',
-                    name='Prediction Error (%)'
+                    x=feedback_df['timestamp'], y=feedback_df['error_percent'],
+                    mode='lines+markers', name='Prediction Error (%)'
                 ))
-                
-                fig.update_layout(
-                    title="Prediction Error Over Time",
-                    xaxis_title="Timestamp",
-                    yaxis_title="Error (%)"
-                )
-                
+                fig.update_layout(title="Prediction Error Over Time",
+                                  xaxis_title="Timestamp", yaxis_title="Error (%)")
                 st.plotly_chart(fig, use_container_width=True)
-                
-                # Show error distribution
-                st.subheader("Error Distribution")
-                
-                fig = px.histogram(
-                    feedback_df,
-                    x='error_percent',
-                    nbins=20,
-                    title="Distribution of Prediction Errors"
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Show data table
                 st.subheader("Recent Feedback Data")
                 st.dataframe(feedback_df.tail(10))
             else:
-                st.info("No feedback data available yet. As you use the system, prediction accuracy data will be collected here.")
+                st.info("No feedback data yet.")
         else:
-            st.info("No feedback data available yet. As you use the system, prediction accuracy data will be collected here.")
-    
-    with tab2:
+            st.info("No feedback data available yet. As you use the system, "
+                    "prediction accuracy data will be collected here.")
+
+    # ── Tab 3: Cache Performance ──────────────────────────────────────────────
+    with tab_cache:
         st.subheader("Cache Performance")
-        
-        # Get cache stats
-        predictor = get_predictor()
+        predictor  = get_predictor()
         cache_stats = predictor.get_cache_stats()
-        
-        # Display metrics
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Cache Hit Rate", f"{cache_stats['hit_rate']:.2%}")
@@ -775,30 +900,14 @@ def show_performance_monitor():
             st.metric("Cache Size", f"{cache_stats['cache_size']} / {cache_stats['max_cache_size']}")
         with col3:
             st.metric("Total Predictions", cache_stats['cache_hits'] + cache_stats['cache_misses'])
-        
-        # Create hit/miss chart
         hit_miss_data = pd.DataFrame([
-            {'Category': 'Hits', 'Count': cache_stats['cache_hits']},
+            {'Category': 'Hits',   'Count': cache_stats['cache_hits']},
             {'Category': 'Misses', 'Count': cache_stats['cache_misses']}
         ])
-        
-        fig = px.pie(
-            hit_miss_data,
-            values='Count',
-            names='Category',
-            title="Cache Hits vs Misses",
-            color='Category',
-            color_discrete_map={'Hits': 'green', 'Misses': 'red'}
-        )
-        
+        fig = px.pie(hit_miss_data, values='Count', names='Category',
+                     title="Cache Hits vs Misses", color='Category',
+                     color_discrete_map={'Hits': '#2ecc71', 'Misses': '#e74c3c'})
         st.plotly_chart(fig, use_container_width=True)
-        
-        st.info("""
-        The prediction cache stores results of previous predictions to speed up repeated queries.
-        
-        A high hit rate indicates efficient use of the cache and faster predictions.
-        The cache automatically manages its size to balance memory usage and performance.
-        """)
 
 def show_about_page():
     st.title("About GPU Usage Prediction System")
