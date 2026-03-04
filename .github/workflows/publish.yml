@@ -1,0 +1,62 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "v*.*.*"   # triggers on: git tag v0.2.0 && git push --tags
+
+jobs:
+  build-and-publish:
+    name: Build & publish blink-gpu to PyPI
+    runs-on: ubuntu-latest
+    environment: pypi-release   # optional GitHub environment for approval gates
+
+    permissions:
+      id-token: write   # needed for PyPI Trusted Publisher (OIDC) — future upgrade path
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install build tools
+        run: pip install build twine --quiet
+
+      - name: Install CPU torch (needed for build)
+        run: |
+          pip install torch==2.2.0 --index-url https://download.pytorch.org/whl/cpu --quiet
+
+      - name: Build wheel + sdist
+        run: python -m build
+
+      - name: Verify dist contents
+        run: |
+          ls -lh dist/
+          python -m twine check dist/*
+
+      - name: Upload to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: python -m twine upload dist/*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            ## blink-gpu ${{ github.ref_name }}
+
+            Install: `pip install blink-gpu==${{ github.ref_name[1:] }}`
+
+            ```python
+            from blink import BlinkPredictor
+            result = BlinkPredictor().predict("resnet50", batch_size=32)
+            ```
