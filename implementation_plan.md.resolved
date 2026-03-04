@@ -1,0 +1,46 @@
+# Priority 4: Uncertainty Quantification (Prediction Intervals)
+
+Add prediction intervals to execution time and memory predictions using Quantile Regression. This will allow the dashboard to show confidence bounds (e.g., "Predicted: 45ms [38ms – 63ms at 80% confidence]").
+
+## Proposed Changes
+
+### 1. Train Quantile Models ([prediction_model.py](file:///c:/Aniket/Gpu_project/Neusight/prediction_model.py) & [train_memory_model.py](file:///c:/Aniket/Gpu_project/Neusight/train_memory_model.py))
+We will train two additional XGBoost models for each target variable (execution time, memory) to predict the 10th and 90th percentiles using the `reg:quantileerror` objective.
+
+#### [MODIFY] [prediction_model.py](file:///c:/Aniket/Gpu_project/Neusight/prediction_model.py)
+- Modify the script to train `xgb_lower_model` (alpha=0.1) and `xgb_upper_model` (alpha=0.9).
+- Save these models as `xgb_lower_model.joblib` and `xgb_upper_model.joblib`.
+
+#### [MODIFY] [train_memory_model.py](file:///c:/Aniket/Gpu_project/Neusight/train_memory_model.py)
+- Modify the script to train `memory_lower_model` (alpha=0.1) and `memory_upper_model` (alpha=0.9).
+- Save these models as `memory_lower_model.joblib` and `memory_upper_model.joblib`.
+
+### 2. Update Prediction Logic ([gpu_predictor.py](file:///c:/Aniket/Gpu_project/Neusight/gpu_predictor.py) & [prediction_api.py](file:///c:/Aniket/Gpu_project/Neusight/prediction_api.py))
+Update the backend predictor classes to load the quantile models and return bounds alongside the point estimates.
+
+#### [MODIFY] [gpu_predictor.py](file:///c:/Aniket/Gpu_project/Neusight/gpu_predictor.py)
+- Load the lower and upper quantile models for execution time and memory.
+- Update [predict()](file:///c:/Aniket/Gpu_project/Neusight/dynamic_predictor.py#29-40) to return [(prediction, lower_bound, upper_bound)](file:///c:/Aniket/Gpu_project/Neusight/dashboard.py#67-111).
+- Update [optimize_batch_size()](file:///c:/Aniket/Gpu_project/Neusight/gpu_predictor.py#120-172) to use bounds if necessary, or just report them.
+
+#### [MODIFY] [prediction_api.py](file:///c:/Aniket/Gpu_project/Neusight/prediction_api.py)
+- Update [predict_memory_usage()](file:///c:/Aniket/Gpu_project/Neusight/prediction_api.py#83-119) to return intervals.
+- Update [predict_for_custom_model()](file:///c:/Aniket/Gpu_project/Neusight/prediction_api.py#120-152) to format bounds.
+
+### 3. Update Dashboard ([dashboard.py](file:///c:/Aniket/Gpu_project/Neusight/dashboard.py))
+Surface the prediction intervals clearly to the user in the UI.
+
+#### [MODIFY] [dashboard.py](file:///c:/Aniket/Gpu_project/Neusight/dashboard.py)
+- On the "Predict" page, display "Execution Time: X ms [lower_bound - upper_bound ms]".
+- On the "Batch Size Optimizer" page, visualize the execution time as a shaded region (confidence interval).
+
+## Verification Plan
+
+### Automated Tests
+- Run [prediction_model.py](file:///c:/Aniket/Gpu_project/Neusight/prediction_model.py) and [train_memory_model.py](file:///c:/Aniket/Gpu_project/Neusight/train_memory_model.py) to ensure the quantile models train properly and achieve expected coverage.
+- Run `prediction_api.py --test-model` to verify that predictions include `lower_bound` and `upper_bound` keys.
+
+### Manual Verification
+- Open the Streamlit dashboard (`streamlit run dashboard.py`).
+- Go to the "Predict" page and verify the intervals are displayed below the execution time and memory rows.
+- Go to the "Batch Size Optimizer" and look for the shaded uncertainty bands in the Plotly charts.

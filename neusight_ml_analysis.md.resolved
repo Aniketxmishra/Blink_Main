@@ -1,0 +1,382 @@
+# Neusight — ML Expert Analysis & Enhancement Roadmap
+
+## What the Project Does (30-second summary)
+Neusight is a **GPU performance prediction system** for PyTorch models. Given a neural network's architecture (params, size, FLOPs, layer counts), it predicts **execution time in milliseconds** across batch sizes — without running the model on real GPU hardware. It uses classical ML (Gradient Boosting, Random Forest, etc.) trained on profiled data from CNNs and transformers, exposed via a Streamlit dashboard.
+
+---
+
+## Strengths (What's Done Well)
+
+- Clean end-to-end pipeline: profile → feature extract → train → predict → dashboard
+- `GradientBoostingRegressor` as the default model — solid choice for tabular regression
+- Prediction caching in [GPUPredictor](file:///c:/Aniket/Gpu_project/Neusight/gpu_predictor.py#8-147) is smart for low-latency serving
+- [DynamicPredictor](file:///c:/Aniket/Gpu_project/Neusight/dynamic_predictor.py#9-118) with feedback logging + triggered retraining is a great architectural decision
+- FLOPs counting via `thop` is a step above naive param counting
+- Diverse architectural coverage (CNNs, BERT, GPT2, ViT, GNNs, Diffusion UNets)
+- [WorkloadScheduler](file:///c:/Aniket/Gpu_project/Neusight/workload_scheduler.py#1-60) is a clever downstream use case
+
+---
+
+## Critical Weaknesses & Issues
+
+### 1. The Feature Set is Dangerously Thin
+
+[prediction_model.py](file:///c:/Aniket/Gpu_project/Neusight/prediction_model.py) trains on just **4 features**:
+```python
+feature_cols = ['total_parameters', 'trainable_parameters', 'model_size_mb', 'batch_size']
+```
+`total_parameters` and `model_size_mb` are almost perfectly collinear (one is ~4× the other for fp32 models). You're effectively training on **2–3 independent features**. This is the #1 source of prediction error — the model can't distinguish a 25M-param CNN from a 25M-param Transformer, even though they have fundamentally different compute profiles.
+
+[feature_extractor.py](file:///c:/Aniket/Gpu_project/Neusight/feature_extractor.py) extracts rich features (FLOPs, layer depth, conv/fc/bn counts, kernel sizes, compute-memory ratio) but **none of them are used in [train_models()](file:///c:/Aniket/Gpu_project/Neusight/prediction_model.py#77-130)**. The rich extractor is disconnected from the actual training pipeline.
+
+### 2. Memory Prediction is a Hardcoded Heuristic
+
+```python
+# prediction_api.py line 89
+estimated_memory = base_memory * (1 + 0.2 * (batch_size - 1))
+```
+This is not learned. Activation memory scales non-linearly with batch size, and the overhead is architecture-dependent (a ResNet has very different activation memory vs. a transformer with attention). Memory prediction needs its own trained model.
+
+### 3. Batch-Size Scaling is Wrong
+
+The [optimize_batch_size()](file:///c:/Aniket/Gpu_project/Neusight/gpu_predictor.py#97-147) in [gpu_predictor.py](file:///c:/Aniket/Gpu_project/Neusight/gpu_predictor.py) estimates memory as:
+```python
+memory_usage = base_memory + (base_memory * mem_scale_factor * batch_size)
+```
+This is a linear approximation. In practice, activation memory depends on intermediate feature map sizes (a function of spatial resolution and layer depth), not just model weight size.
+
+### 4. No Uncertainty Estimation
+
+Predictions are point estimates with zero confidence intervals. For a production system, knowing "this prediction has ±30% uncertainty" is critical — it changes batch scheduling decisions entirely.
+
+### 5. Training Data Distribution Issues
+
+- Only `10` iterations in [model_profiler.py](file:///c:/Aniket/Gpu_project/Neusight/model_profiler.py) — high variance in timing measurements
+- No warm-up for actual CUDA timing (only 3 warm-up runs)
+- Models are profiled with `weights=None` (random weights), but actual execution time can vary slightly with weight distribution for operations like attention
+- No stratified split by model family — Random Forest might overfit to CNNs if they dominate the dataset
+
+### 6. Dynamic Retraining is Naive
+```python
+if len(self.feedback_data) % 10 == 0:  # Retrain every 10 feedback entries
+    self.retrain_model()
+```
+Retraining on every 10th data point with a hard-coded `GradientBoostingRegressor(n_estimators=100)` discards the old model instead of updating it. This can cause **catastrophic forgetting** and ignores whether error actually improved.
+
+---
+
+## Enhancement Roadmap (Prioritized)
+
+### 🔴 Priority 1 — Fix the Feature Pipeline (Highest Impact)
+
+**Problem**: Rich features exist in [feature_extractor.py](file:///c:/Aniket/Gpu_project/Neusight/feature_extractor.py) but aren't fed to [train_models()](file:///c:/Aniket/Gpu_project/Neusight/prediction_model.py#77-130).
+
+**Fix**: Update [prepare_features()](file:///c:/Aniket/Gpu_project/Neusight/prediction_model.py#50-76) in [prediction_model.py](file:///c:/Aniket/Gpu_project/Neusight/prediction_model.py) to include all extracted features:
+
+```python
+# Current (broken)
+feature_cols = ['total_parameters', 'trainable_parameters', 'model_size_mb', 'batch_size']
+
+# Enhanced (what it should be)
+feature_cols = [
+    'batch_size',
+    'flops',                    # Actual compute cost
+    'compute_memory_ratio',     # FLOPs per byte — key signal
+    'num_conv_layers',
+    'num_fc_layers',
+    'num_bn_layers',
+    'avg_conv_kernel_size',
+    'max_conv_channels',
+    'total_conv_params',
+    'total_fc_params',
+    'model_depth',
+    'model_size_mb',            # Keep this
+    # DROP: total_parameters and trainable_parameters (collinear with model_size_mb)
+]
+```
+
+[flops](file:///c:/Aniket/Gpu_project/Neusight/advanced_features.py#17-32) alone will dramatically improve predictions because it captures the actual compute — a 25M-param transformer does far more FLOPs than a 25M-param CNN due to attention.
+
+---
+
+### 🔴 Priority 2 — Replace GBM with XGBoost/LightGBM + Hyperparameter Tuning
+
+Scikit-learn's `GradientBoostingRegressor` is slow and untuned. Drop-in replacement:
+
+```python
+# pip install xgboost lightgbm optuna
+import xgboost as xgb
+from sklearn.model_selection import cross_val_score
+import optuna
+
+def objective(trial):
+    params = {
+        'n_estimators': trial.suggest_int('n_estimators', 100, 1000),
+        'max_depth': trial.suggest_int('max_depth', 3, 10),
+        'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
+        'subsample': trial.suggest_float('subsample', 0.6, 1.0),
+        'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0),
+        'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 10.0, log=True),
+    }
+    model = xgb.XGBRegressor(**params, tree_method='hist', device='cuda')
+    score = cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_absolute_percentage_error')
+    return score.mean()
+
+study = optuna.create_study(direction='maximize')
+study.optimize(objective, n_trials=100)
+```
+
+Also: **log-transform the target**. Execution times span orders of magnitude (1ms → 1000ms). Training on log(y) and exponentiation at prediction time will significantly reduce RMSE:
+```python
+y_log = np.log1p(y)  # log(1 + y) to handle near-zero values
+# After prediction:
+y_pred_original = np.expm1(y_pred_log)
+```
+
+---
+
+### 🔴 Priority 3 — Uncertainty Quantification
+
+Add prediction intervals using **Quantile Regression** or **Conformal Prediction**:
+
+```python
+# Option A: XGBoost Quantile Regression (fast)
+model_lower = xgb.XGBRegressor(objective='reg:quantileerror', quantile_alpha=0.1)
+model_upper = xgb.XGBRegressor(objective='reg:quantileerror', quantile_alpha=0.9)
+model_lower.fit(X_train, y_train)
+model_upper.fit(X_train, y_train)
+
+# Predict with bounds
+lower = model_lower.predict(X_test)
+upper = model_upper.predict(X_test)
+
+# Option B: Conformal Prediction (distribution-free, statistically guaranteed)
+# pip install mapie
+from mapie.regression import MapieRegressor
+mapie = MapieRegressor(base_model, method="plus", cv=5)
+mapie.fit(X_train, y_train)
+y_pred, y_intervals = mapie.predict(X_test, alpha=0.1)  # 90% coverage
+```
+
+Expose this in the dashboard: **"Predicted: 45ms [38ms – 63ms at 90% confidence]"**
+
+---
+
+### 🟡 Priority 4 — Train a Dedicated Memory Prediction Model
+
+Replace the heuristic with a real model:
+
+```python
+# In model_profiler.py — capture peak memory during profiling
+torch.cuda.reset_peak_memory_stats()
+_ = model(dummy_input)
+torch.cuda.synchronize()
+peak_memory_mb = torch.cuda.max_memory_allocated() / (1024**2)
+
+# Add to result dict:
+result['peak_memory_mb'] = peak_memory_mb
+result['activation_memory_mb'] = peak_memory_mb - model_size_mb
+```
+
+Then train a separate regressor: `memory_model.predict([features + batch_size]) → peak_memory_mb`
+
+Key insight: activation memory for CNNs grows with `batch_size × spatial_resolution²`, while for transformers it grows with `batch_size × seq_len²` (quadratic for attention). The model will learn this if given enough diverse data.
+
+---
+
+### 🟡 Priority 5 — Architecture-Aware Embeddings with GNN
+
+The holy grail for this type of problem: represent the model **as a computational graph** and use a GNN to learn execution time embeddings.
+
+```
+Model Graph → GNN Node Embeddings → Pooling → [concat batch_size, hw_features] → MLP → exec_time
+```
+
+Libraries: `torch_geometric` (already a dependency!), `networkx` for graph construction.
+
+**Why it matters**: A GNN can learn that `skip connections` reduce memory bandwidth for the residual path, that depthwise separable convolutions are faster than standard conv2d at same param count, etc. — things a flat feature vector can never capture.
+
+Implementation sketch:
+```python
+# Convert model to computation graph
+def model_to_graph(model):
+    nodes = []  # one per layer
+    edges = []  # connectivity
+    for i, (name, module) in enumerate(model.named_modules()):
+        node_feat = encode_layer(module)  # [layer_type_onehot, params, flops, ...]
+        nodes.append(node_feat)
+        if i > 0:
+            edges.append([i-1, i])  # sequential by default
+    return Data(x=torch.tensor(nodes), edge_index=torch.tensor(edges).t())
+```
+
+---
+
+### 🟡 Priority 6 — Fix Timing Measurement Quality
+
+Current profiling has high variance. Replace with CUDA Events for GPU timing:
+
+```python
+# In model_profiler.py — replace time.time() with CUDA events
+if self.cuda_available:
+    starter = torch.cuda.Event(enable_timing=True)
+    ender = torch.cuda.Event(enable_timing=True)
+    timings = []
+    
+    for _ in range(50):  # Increase iterations, throw out outliers
+        starter.record()
+        with torch.no_grad():
+            _ = model(dummy_input)
+        ender.record()
+        torch.cuda.synchronize()
+        timings.append(starter.elapsed_time(ender))
+    
+    # Use median, not mean (robust to JIT compilation spikes)
+    avg_execution_time = np.median(timings)
+    std_execution_time = np.std(timings)
+```
+
+Also: warm up for at least **10 runs**, not 3.
+
+---
+
+### 🟢 Priority 7 — Smart Continual Learning in DynamicPredictor
+
+Replace trigger-based full retraining with **incremental learning**:
+
+```python
+# Option A: Online learning with Scikit-learn's SGDRegressor
+from sklearn.linear_model import SGDRegressor
+self.online_model = SGDRegressor()
+self.online_model.partial_fit(X_new, y_new)  # Incremental update
+
+# Option B: Ensemble of old + new (no forgetting)
+from sklearn.ensemble import VotingRegressor
+ensemble = VotingRegressor([
+    ('old', self.model),           # Old model (weight: 0.7)
+    ('new', new_model)             # Newly trained (weight: 0.3)
+], weights=[0.7, 0.3])
+
+# Only trigger retraining when validation MAPE degrades > threshold
+if running_mape > self.error_threshold * 1.15:  # 15% degradation
+    self.trigger_retrain()
+```
+
+---
+
+### 🟢 Priority 8 — Transformer-Specific Features
+
+For transformers (BERT, GPT2, ViT), the sequence length feature is completely missing. Add:
+
+```python
+# feature_extractor.py — detect transformer blocks
+def extract_transformer_features(model):
+    num_attention_heads = []
+    hidden_dims = []
+    num_layers = 0
+    
+    for name, module in model.named_modules():
+        if isinstance(module, nn.MultiheadAttention):
+            num_attention_heads.append(module.num_heads)
+            hidden_dims.append(module.embed_dim)
+            num_layers += 1
+    
+    return {
+        'num_transformer_layers': num_layers,
+        'avg_attention_heads': np.mean(num_attention_heads) if num_attention_heads else 0,
+        'avg_hidden_dim': np.mean(hidden_dims) if hidden_dims else 0,
+        'is_transformer': 1 if num_layers > 0 else 0,
+        # Attention complexity: O(seq_len^2 * hidden_dim)
+        'attention_complexity': seq_len**2 * np.mean(hidden_dims) if hidden_dims else 0
+    }
+```
+
+---
+
+### 🟢 Priority 9 — Multi-GPU & Hardware-Aware Predictions
+
+Currently predicts for one GPU type. Add GPU hardware features:
+
+```python
+# gpu_info.py — expand hardware fingerprint
+gpu_features = {
+    'cuda_cores': get_cuda_cores(device_name),
+    'tensor_cores': has_tensor_cores(device_name),
+    'memory_bandwidth_gbps': get_memory_bandwidth(device_name),
+    'sm_count': torch.cuda.get_device_properties(0).multi_processor_count,
+    'l2_cache_mb': torch.cuda.get_device_properties(0).l2_cache_size / (1024**2),
+    'peak_tflops': get_peak_tflops(device_name),
+}
+# Include these as features so one model works across GPU families (RTX 3090, A100, etc.)
+```
+
+---
+
+## Quick Wins Summary (Do These First)
+
+| Action | File | Estimated Improvement |
+|--------|------|----------------------|
+| Connect rich features to [train_models()](file:///c:/Aniket/Gpu_project/Neusight/prediction_model.py#77-130) | [prediction_model.py](file:///c:/Aniket/Gpu_project/Neusight/prediction_model.py) | ~30-40% MAPE reduction |
+| Log-transform the target variable | [prediction_model.py](file:///c:/Aniket/Gpu_project/Neusight/prediction_model.py) | ~15-20% MAPE reduction |
+| Switch to XGBoost with Optuna tuning | [prediction_model.py](file:///c:/Aniket/Gpu_project/Neusight/prediction_model.py) | ~10-15% MAPE reduction |
+| Replace `time.time()` with CUDA Events | [model_profiler.py](file:///c:/Aniket/Gpu_project/Neusight/model_profiler.py) | Cleaner training data |
+| Profile peak memory in profiler | [model_profiler.py](file:///c:/Aniket/Gpu_project/Neusight/model_profiler.py) | Enables real memory model |
+| Add quantile regression for intervals | [prediction_model.py](file:///c:/Aniket/Gpu_project/Neusight/prediction_model.py) | Uncertainty-aware predictions |
+
+---
+
+## Suggested New Architecture
+
+```
+                    ┌─────────────────────────────┐
+                    │       Model Input            │
+                    │  (PyTorch nn.Module + shape) │
+                    └──────────────┬──────────────┘
+                                   │
+              ┌────────────────────▼────────────────────┐
+              │        Feature Extraction Pipeline       │
+              │  - FLOPs (thop)                         │
+              │  - Layer composition (conv/attn/norm)   │
+              │  - Transformer-specific (heads, seqlen) │
+              │  - Graph structure (GNN path)           │
+              └────────────┬──────────────┬────────────┘
+                           │              │
+              ┌────────────▼──┐    ┌──────▼────────────┐
+              │ Tabular XGBoost│    │  GNN Encoder      │
+              │ + Quantile Reg │    │  (torch_geometric)│
+              └────────────┬──┘    └──────┬────────────┘
+                           │              │
+                    ┌──────▼──────────────▼──────┐
+                    │    Ensemble / Meta-learner  │
+                    └──────────────┬─────────────┘
+                                   │
+               ┌───────────────────▼─────────────────┐
+               │   Outputs                             │
+               │  - exec_time_ms ± confidence interval│
+               │  - peak_memory_mb ± interval         │
+               │  - optimal_batch_size               │
+               └─────────────────────────────────────┘
+```
+
+---
+
+## Dataset Expansion Recommendations
+
+1. Profile **more batch sizes**: [1, 2, 4, 8, 16, 32, 64, 128] — exponential steps, not linear
+2. Add **quantized models** (INT8/FP16) — 2–4× faster, very different profile
+3. Add **compiled models** (`torch.compile()`) — significant speedup, should be a separate target
+4. Add **training-mode profiling** (with gradients) — different memory + compute profile
+5. Add models from **Hugging Face Hub** (LLaMA, Mistral, Phi, etc.) — critical for 2025 relevance
+
+---
+
+## Fastest Path to Publishable Research
+
+If the goal is a paper/thesis:
+1. Fix feature pipeline (Priority 1) → rerun baseline
+2. Add XGBoost + Optuna (Priority 2) → new baseline
+3. Add GNN encoder (Priority 5) → compare against baseline
+4. Ablation study: which features matter most (SHAP values already supported by `shap` library)
+5. Cross-architecture generalization: train on CNNs, test on Transformers
+
+This gives you a clean narrative: *"Structured graph-based features + quantile regression for robust, uncertainty-aware neural network performance prediction across heterogeneous GPU hardware."*

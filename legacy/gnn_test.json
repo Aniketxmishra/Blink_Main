@@ -1,0 +1,34 @@
+{
+  "CustomCNN(3)": {
+    "1": {
+      "exec_time_ms": 0.9295457594618426,
+      "memory_mb": 10.25262961382277,
+      "confidence_lower": 0.8365911835156583,
+      "confidence_upper": 1.0225003354080269,
+      "source": "gnn"
+    },
+    "32": {
+      "exec_time_ms": 6.002489281471371,
+      "memory_mb": 61.16212927606091,
+      "confidence_lower": 5.402240353324235,
+      "confidence_upper": 6.602738209618509,
+      "source": "gnn"
+    }
+  },
+  "ResNetLike(2)": {
+    "1": {
+      "exec_time_ms": 0.6371964678008151,
+      "memory_mb": 1.0282548259546243,
+      "confidence_lower": 0.5734768210207336,
+      "confidence_upper": 0.7009161145808966,
+      "source": "gnn"
+    },
+    "32": {
+      "exec_time_ms": 4.7804142816882065,
+      "memory_mb": 23.647393252362527,
+      "confidence_lower": 4.302372853519386,
+      "confidence_upper": 5.258455709857028,
+      "source": "gnn"
+    }
+  }
+}

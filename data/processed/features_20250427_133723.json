@@ -1,0 +1,5 @@
+[
+  {
+    "model_name": "roberta-base",
+    "input_shape": "(128,)",
+    "total_parameters": 

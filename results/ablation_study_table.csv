@@ -1,0 +1,7 @@
+Condition,MAPE (%)
+1. Base Params,68.68
+2. Base + Compute,68.63
+3. Rich Arch + Family,68.63
+4. Pure GNN,48.97
+5. GNN + Rich (Blink),59.44
+Memory (Rich Arch),32.01

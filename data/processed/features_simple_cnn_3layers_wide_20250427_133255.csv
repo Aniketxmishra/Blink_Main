@@ -1,0 +1,4 @@
+model_name,batch_size,input_shape,execution_time_ms,total_parameters,trainable_parameters,model_size_mb,device
+simple_cnn_3layers_wide,1,"(3, 224, 224)",6.801390647888184,1096778,1096778,4.183876037597656,cpu
+simple_cnn_3layers_wide,2,"(3, 224, 224)",11.855077743530272,1096778,1096778,4.183876037597656,cpu
+simple_cnn_3layers_wide,4,"(3, 224, 224)",23.69053363800049,1096778,1096778,4.183876037597656,cpu

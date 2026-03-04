@@ -1,0 +1,1 @@
+timestamp,model_name,batch_size,total_parameters,trainable_parameters,model_size_mb,predicted_time,actual_time,error_percent

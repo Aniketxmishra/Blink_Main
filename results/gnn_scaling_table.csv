@@ -1,0 +1,9 @@
+Model,BS=1 (ms),BS=32 (ms),Ratio,Expected,Status
+ResNet18,4.32,24.33,5.6x,~3-4x,OK
+VGG16,19.64,109.93,5.6x,~3-4x,OK
+MobileNetV2,6.28,31.90,5.1x,~3-4x,OK
+ShuffleNetV2,5.85,29.95,5.1x,~3-4x,OK
+SqueezeNet,10.49,53.51,5.1x,~3-4x,OK
+DenseNet121,15.31,79.30,5.2x,~3-4x,OK
+EfficientNet-B0,8.84,44.90,5.1x,~3-4x,OK
+ConvNeXt-Tiny,32.28,158.14,4.9x,~3-4x,OK
