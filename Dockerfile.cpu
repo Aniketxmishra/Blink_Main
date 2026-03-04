@@ -1,0 +1,47 @@
+# ────────────────────────────────────────────────────────────────────────────
+# Blink — Dockerfile.cpu
+# CPU-only image for users without NVIDIA GPUs / without nvidia-docker.
+# Use when: testing, CI runs, machines without NVIDIA drivers.
+#
+# Build & run:
+#   docker build -f Dockerfile.cpu -t blink-cpu .
+#   docker run -p 8501:8501 -v ./models:/app/models:ro blink-cpu
+# ────────────────────────────────────────────────────────────────────────────
+
+FROM python:3.11-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git curl build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install CPU-only PyTorch (much smaller than CUDA wheels)
+RUN pip install --no-cache-dir \
+        torch==2.2.0 torchvision==0.17.0 \
+        --index-url https://download.pytorch.org/whl/cpu
+
+# torch-geometric CPU
+RUN pip install --no-cache-dir torch-geometric \
+        -f https://data.pyg.org/whl/torch-2.2.0+cpu.html
+
+# Remaining deps
+RUN pip install --no-cache-dir \
+        numpy==1.26.4 pandas==2.2.0 scikit-learn==1.4.0 \
+        xgboost optuna lightgbm \
+        thop==0.1.1.post2209072238 joblib==1.3.2 \
+        pynvml \
+        streamlit==1.32.0 plotly==5.18.0 matplotlib==3.8.3 seaborn==0.13.2 \
+        "fastapi>=0.110.0" "uvicorn[standard]>=0.27.0" \
+        python-multipart httpx
+
+COPY . .
+
+EXPOSE 8501 8000
+
+ENV STREAMLIT_SERVER_HEADLESS=true \
+    STREAMLIT_SERVER_PORT=8501 \
+    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+
+CMD ["streamlit", "run", "dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]

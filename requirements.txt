@@ -24,5 +24,8 @@ plotly==5.18.0
 matplotlib==3.8.3
 seaborn==0.13.2
 
-# Web API
-flask
+# REST API
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart
+httpx
