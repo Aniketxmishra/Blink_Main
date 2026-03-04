@@ -238,56 +238,59 @@ class GPUPredictor:
             "cache_misses": self.cache_misses,
             "hit_rate": hit_rate
         }
-    
-    def optimize_batch_size(self, model_features, min_batch=1, max_batch=128, memory_limit_mb=8000):
-        """Find optimal batch size for throughput within memory constraints.
 
-        Samples candidate batch sizes using powers-of-2 within the given range,
-        plus the exact min/max values so the full range endpoints are always tested.
-        This reduces worst-case iterations from O(max_batch) to O(log2(max_batch)).
+    def optimize_batch_size(self, model_features, min_batch=1, max_batch=128, memory_limit_mb=8000):
+        """Find the efficient optimal batch size using the knee/elbow method.
+
+        Raw argmax(throughput) always returns max_batch because GPU execution time
+        scales sub-linearly with batch size (GPU parallelism means bigger batches
+        are proportionally faster). The elbow/knee method finds the inflection point
+        on the throughput curve — the batch size where marginal gains start to
+        plateau — which is the true engineering optimum.
         """
-        # Build candidate batch sizes: powers-of-2 within [min_batch, max_batch]
-        candidates = set()
-        candidates.add(min_batch)
-        candidates.add(max_batch)
+        # Build dense candidate set: powers-of-2 + intermediate midpoints
+        candidates = set([min_batch, max_batch])
         b = 1
         while b <= max_batch:
             if b >= min_batch:
                 candidates.add(b)
+                mid = b * 3 // 2
+                if min_batch <= mid <= max_batch:
+                    candidates.add(mid)
             b *= 2
+        # Also add ~20 linearly-spaced points for smooth curve
+        step = max(1, (max_batch - min_batch) // 20)
+        for v in range(min_batch, max_batch + 1, step):
+            candidates.add(v)
         candidates = sorted(candidates)
 
-        best_throughput = 0
-        optimal_batch = min_batch
         batch_results = []
 
         for batch_size in candidates:
+            if batch_size < 1:
+                continue
             features = model_features.copy()
             features['batch_size'] = batch_size
 
             prediction_payload = self.predict(features)
-            exec_time = max(prediction_payload['exec_time_ms'], 0.001)  # Guard div-by-zero
+            exec_time = max(prediction_payload['exec_time_ms'], 0.001)
             exec_lower = prediction_payload['exec_time_lower']
             exec_upper = prediction_payload['exec_time_upper']
 
-            # Get memory usage
             if self.has_memory_model:
                 memory_usage = prediction_payload['memory_usage_mb']
                 memory_lower = prediction_payload['memory_lower_mb']
                 memory_upper = prediction_payload['memory_upper_mb']
             else:
-                # Fallback heuristic: model weights + activations scale linearly with batch
                 base_memory = model_features.get('model_size_mb', 0) or 0
-                mem_scale_factor = 0.5 if model_features.get('total_parameters', 0) > 100_000_000 else 0.3
-                memory_usage = base_memory + (base_memory * mem_scale_factor * batch_size)
+                mem_scale = 0.5 if model_features.get('total_parameters', 0) > 100_000_000 else 0.3
+                memory_usage = base_memory + (base_memory * mem_scale * batch_size)
                 memory_lower = memory_usage * 0.9
                 memory_upper = memory_usage * 1.1
 
-            # Skip batch sizes that exceed memory budget
             if memory_usage > memory_limit_mb:
                 continue
 
-            # Throughput = samples processed per second
             throughput = (batch_size * 1000.0) / exec_time
 
             batch_results.append({
@@ -301,11 +304,6 @@ class GPUPredictor:
                 'memory_upper_mb': memory_upper
             })
 
-            if throughput > best_throughput:
-                best_throughput = throughput
-                optimal_batch = batch_size
-
-        # Guard: if every batch size exceeded memory, return a safe fallback
         if not batch_results:
             return {
                 'optimal_batch_size': min_batch,
@@ -319,9 +317,43 @@ class GPUPredictor:
                 'error': 'All batch sizes exceed the memory limit. Increase memory limit or reduce max batch size.'
             }
 
-        optimal_row = next((r for r in batch_results if r['batch_size'] == optimal_batch), batch_results[0])
+        batch_results.sort(key=lambda x: x['batch_size'])
+
+        if len(batch_results) < 3:
+            optimal_row = batch_results[-1]
+        else:
+            # ── Knee / Elbow detection ──────────────────────────────────────
+            # Normalize batch sizes and throughputs to [0, 1]
+            bs = np.array([r['batch_size'] for r in batch_results], dtype=float)
+            tp = np.array([r['throughput'] for r in batch_results], dtype=float)
+
+            bs_n = (bs - bs[0]) / max(bs[-1] - bs[0], 1e-9)
+            tp_n = (tp - tp[0]) / max(tp[-1] - tp[0], 1e-9)
+
+            # Line from first point to last point on normalized curve
+            lx = bs_n[-1] - bs_n[0]
+            ly = tp_n[-1] - tp_n[0]
+            line_len = np.hypot(lx, ly)
+
+            # Perpendicular distance of each point from that diagonal
+            dists = []
+            for bx, by in zip(bs_n, tp_n):
+                dx = bx - bs_n[0]
+                dy = by - tp_n[0]
+                # |cross product| / |line|
+                dist = abs(lx * dy - ly * dx) / max(line_len, 1e-9)
+                dists.append(dist)
+
+            knee_idx = int(np.argmax(dists))
+
+            # Avoid recommending batch=1 if there's a clearly better knee further along
+            if knee_idx == 0 and len(batch_results) > 2:
+                knee_idx = int(np.argmax(dists[1:])) + 1
+
+            optimal_row = batch_results[knee_idx]
+
         return {
-            'optimal_batch_size': optimal_batch,
+            'optimal_batch_size': optimal_row['batch_size'],
             'predicted_execution_time': optimal_row['exec_time_ms'],
             'exec_lower_ms': optimal_row['exec_lower_ms'],
             'exec_upper_ms': optimal_row['exec_upper_ms'],
