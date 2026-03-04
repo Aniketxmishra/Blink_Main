@@ -1,14 +1,13 @@
 """
 blink._analyzer
 ===============
-BlinkAnalyzer — public-facing facade over ModelAnalyser.
+BlinkAnalyzer — public-facing facade over ModelAnalyzer.
 Extracts architecture features from any PyTorch nn.Module.
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Union
 
 import torch.nn as nn
 
@@ -47,7 +46,7 @@ class BlinkAnalyzer:
 
     def analyze(
         self,
-        model: "nn.Module",
+        model: nn.Module,
         input_shape: tuple = (3, 224, 224),
     ) -> dict:
         """
@@ -68,7 +67,7 @@ class BlinkAnalyzer:
         """
         return self._get().extract_features(model, input_shape)
 
-    def summary(self, model: "nn.Module", input_shape: tuple = (3, 224, 224)) -> str:
+    def summary(self, model: nn.Module, input_shape: tuple = (3, 224, 224)) -> str:
         """
         Return a human-readable string summary of the model's key metrics.
 

@@ -19,9 +19,9 @@ Or with your own model:
 """
 from __future__ import annotations
 
+from blink._analyzer import BlinkAnalyzer
 from blink._predictor import BlinkPredictor
-from blink._analyzer  import BlinkAnalyzer
-from blink._version   import __version__
+from blink._version import __version__
 
 __all__ = [
     "BlinkPredictor",

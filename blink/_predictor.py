@@ -1,14 +1,12 @@
 """
 blink._predictor
 ================
-BlinkPredictor — public-facing facade over gpu_predictor.GpuPredictor.
+BlinkPredictor — public-facing facade over gpu_predictor.GPUPredictor.
 """
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
-from typing import Union, List, Optional
 
 import torch.nn as nn
 
@@ -52,7 +50,7 @@ class BlinkPredictor:
         "resnet18", "resnet50", "vgg16", "mobilenet_v2", "densenet121",
     }
 
-    def __init__(self, models_dir: Optional[Union[str, Path]] = None):
+    def __init__(self, models_dir: str | Path | None = None):
         self._models_dir = Path(models_dir) if models_dir else _DEFAULT_MODELS_DIR
         self._predictor = None   # lazy-loaded
 
@@ -71,7 +69,7 @@ class BlinkPredictor:
 
     def predict(
         self,
-        model: Union[str, "nn.Module"],
+        model: str | nn.Module,
         batch_size: int = 32,
         input_shape: tuple = (3, 224, 224),
     ) -> dict:
@@ -127,10 +125,10 @@ class BlinkPredictor:
 
     def predict_batch(
         self,
-        model: Union[str, "nn.Module"],
-        batch_sizes: List[int],
+        model: str | nn.Module,
+        batch_sizes: list[int],
         input_shape: tuple = (3, 224, 224),
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         Predict for multiple batch sizes in one call.
 
@@ -144,7 +142,7 @@ class BlinkPredictor:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _load_named_model(name: str) -> "nn.Module":
+def _load_named_model(name: str) -> nn.Module:
     """Load a torchvision pre-trained model by name."""
     import torchvision.models as tv
     name = name.lower().replace("-", "_")

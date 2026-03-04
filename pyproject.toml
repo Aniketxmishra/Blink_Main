@@ -114,8 +114,11 @@ include = ["blink*"]
 # ── Ruff (linter) ─────────────────────────────────────────────────────────────
 [tool.ruff]
 line-length = 100
-select      = ["E", "F", "I", "UP"]
-ignore      = ["E501"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
 
 # ── pytest ────────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
