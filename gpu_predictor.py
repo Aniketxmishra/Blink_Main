@@ -16,11 +16,27 @@ class GPUPredictor:
             self.memory_model_lower = joblib.load('models/memory_lower_model.joblib')
             self.memory_model_upper = joblib.load('models/memory_upper_model.joblib')
             self.has_memory_model = True
+            # Load activation-aware feature list saved during training
+            import json
+            mem_feat_path = 'models/memory_model_features.json'
+            if os.path.exists(mem_feat_path):
+                with open(mem_feat_path) as f:
+                    self.memory_feature_cols = json.load(f)['features']
+                print(f"Loaded memory model v2 ({len(self.memory_feature_cols)} features)")
+            else:
+                # Fallback to old feature set if JSON not present
+                self.memory_feature_cols = [
+                    'batch_size', 'flops', 'compute_memory_ratio',
+                    'num_conv_layers', 'num_fc_layers', 'num_bn_layers',
+                    'avg_conv_kernel_size', 'max_conv_channels',
+                    'total_conv_params', 'total_fc_params', 'model_depth', 'model_size_mb'
+                ]
         except FileNotFoundError:
             print(f"Warning: Memory model not found at {memory_model_path}. Falling back to heuristic.")
             self.has_memory_model = False
             self.memory_model_lower = None
             self.memory_model_upper = None
+            self.memory_feature_cols = []
             
         try:
             self.model_lower = joblib.load('models/execution_lower_model.joblib')
@@ -117,13 +133,24 @@ class GPUPredictor:
                 lower_bounds = predictions
                 upper_bounds = predictions
             
-            # Predict memory usage
+            # Predict memory usage using the activation-aware feature set
             if self.has_memory_model:
-                memory_preds = self.memory_model.predict(features_df)
-                memory_lower = self.memory_model_lower.predict(features_df)
-                memory_upper = self.memory_model_upper.predict(features_df)
+                mem_numeric = []
+                for features in features_to_predict:
+                    mem_row = {
+                        col: features.get(col, 0)
+                        for col in self.memory_feature_cols
+                    }
+                    # batch_size default = 1 if missing
+                    if 'batch_size' in self.memory_feature_cols:
+                        mem_row['batch_size'] = features.get('batch_size', 1)
+                    mem_numeric.append(mem_row)
+                mem_df = pd.DataFrame(mem_numeric)[self.memory_feature_cols]
+                memory_preds   = self.memory_model.predict(mem_df)
+                memory_lower_p = self.memory_model_lower.predict(mem_df)
+                memory_upper_p = self.memory_model_upper.predict(mem_df)
             else:
-                 memory_preds = memory_lower = memory_upper = [None] * len(predictions)
+                memory_preds = memory_lower_p = memory_upper_p = [None] * len(predictions)
             
             # Update results and cache
             for i, pred_idx in enumerate(cache_indices):
@@ -132,8 +159,8 @@ class GPUPredictor:
                     'exec_time_lower': float(max(1.0, lower_bounds[i])),
                     'exec_time_upper': float(max(predictions[i], upper_bounds[i])),
                     'memory_usage_mb': float(max(10.0, memory_preds[i])) if self.has_memory_model else None,
-                    'memory_lower_mb': float(max(10.0, memory_lower[i])) if self.has_memory_model else None,
-                    'memory_upper_mb': float(max(memory_preds[i], memory_upper[i])) if self.has_memory_model else None
+                    'memory_lower_mb': float(max(10.0, memory_lower_p[i])) if self.has_memory_model else None,
+                    'memory_upper_mb': float(max(memory_preds[i], memory_upper_p[i])) if self.has_memory_model else None
                 }
                 
                 results[pred_idx] = pred_dict
