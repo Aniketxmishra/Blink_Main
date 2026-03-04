@@ -319,11 +319,166 @@ model = MyModel()'''
                 fig.update_yaxes(title_text="Peak Memory (MB)", secondary_y=True)
                 
                 st.plotly_chart(fig, use_container_width=True)
-                
+
+                # ── SHAP "Why this prediction?" expander ──────────────────
+                if model_type != "PyTorch Code (GNN)":
+                    with st.expander("🔍 Why this prediction? (SHAP Explanation)", expanded=False):
+                        try:
+                            import sys as _sys
+                            _sys.path.insert(0, '.')
+                            from scripts.shap_explainer import BlinkExplainer
+
+                            @st.cache_resource(show_spinner=False)
+                            def _get_explainer():
+                                return BlinkExplainer()
+
+                            with st.spinner("Computing SHAP values..."):
+                                exp_obj  = _get_explainer()
+                                first_bs = batch_sizes[0]
+                                shap_r   = exp_obj.explain_exec(features, batch_size=first_bs)
+                                shap_mem = exp_obj.explain_memory(features, batch_size=first_bs)
+                                global_imp = exp_obj.global_importance_exec()
+
+                            # ── Tab layout ────────────────────────────────
+                            st_s1, st_s2, st_s3 = st.tabs([
+                                "Exec Time: This Prediction",
+                                "Memory: This Prediction",
+                                "Global Feature Importance"
+                            ])
+
+                            # ── Tab 1: waterfall for exec time ─────────────
+                            with st_s1:
+                                st.markdown(
+                                    f"**Batch size {first_bs}** — "
+                                    f"predicted exec time: **{results[0]['Execution Time (ms)']:.2f} ms**  \n"
+                                    "Each bar shows how much a feature *pushed the prediction up (red) or down (blue)* "
+                                    "from the baseline (average model)."
+                                )
+                                sv   = shap_r['shap_values']
+                                labs = shap_r['feature_labels']
+                                vals = shap_r['feature_values']
+                                base = shap_r['base_value']
+
+                                # Sort by absolute contribution
+                                order = np.argsort(np.abs(sv))[::-1]
+                                sv_sorted   = sv[order]
+                                labs_sorted = [labs[i] for i in order]
+                                vals_sorted = [vals[i] for i in order]
+
+                                colors = ['#e74c3c' if v > 0 else '#3498db' for v in sv_sorted]
+                                hover  = [f"{labs_sorted[i]}: {vals_sorted[i]:.3g}  →  SHAP {sv_sorted[i]:+.3f}"
+                                          for i in range(len(sv_sorted))]
+
+                                fig_w = go.Figure(go.Bar(
+                                    x=sv_sorted,
+                                    y=labs_sorted,
+                                    orientation='h',
+                                    marker_color=colors,
+                                    hovertext=hover,
+                                    hoverinfo='text',
+                                ))
+                                fig_w.add_vline(x=0, line_width=1, line_color='white', opacity=0.4)
+                                fig_w.update_layout(
+                                    title=f"SHAP Contribution to Exec Time (batch={first_bs})",
+                                    paper_bgcolor='#0e1117',
+                                    plot_bgcolor='#0e1117',
+                                    font=dict(color='white'),
+                                    xaxis_title="SHAP value (log-ms scale)",
+                                    height=420,
+                                    margin=dict(l=160, r=20, t=50, b=40),
+                                )
+                                st.plotly_chart(fig_w, use_container_width=True)
+
+                                # Interpretation cards
+                                top_pos = [(labs_sorted[i], sv_sorted[i]) for i in range(len(sv_sorted)) if sv_sorted[i] > 0][:3]
+                                top_neg = [(labs_sorted[i], sv_sorted[i]) for i in range(len(sv_sorted)) if sv_sorted[i] < 0][:3]
+                                c1, c2 = st.columns(2)
+                                with c1:
+                                    st.markdown("**Increases execution time:**")
+                                    for feat, val in top_pos:
+                                        st.markdown(f"- **{feat}** `+{val:.3f}`")
+                                with c2:
+                                    st.markdown("**Decreases execution time:**")
+                                    for feat, val in top_neg:
+                                        st.markdown(f"- **{feat}** `{val:.3f}`")
+
+                            # ── Tab 2: waterfall for memory ────────────────
+                            with st_s2:
+                                st.markdown(
+                                    f"**Batch size {first_bs}** — "
+                                    f"predicted memory: **{results[0]['Memory Usage (MB)']:.1f} MB**  \n"
+                                    "Red = pushes memory higher, Blue = pushes memory lower."
+                                )
+                                sv_m   = shap_mem['shap_values']
+                                labs_m = shap_mem['feature_labels']
+                                vals_m = shap_mem['feature_values']
+
+                                order_m    = np.argsort(np.abs(sv_m))[::-1]
+                                sv_m_s     = sv_m[order_m]
+                                labs_m_s   = [labs_m[i] for i in order_m]
+                                vals_m_s   = [vals_m[i] for i in order_m]
+                                colors_m   = ['#e74c3c' if v > 0 else '#3498db' for v in sv_m_s]
+                                hover_m    = [f"{labs_m_s[i]}: {vals_m_s[i]:.3g}  →  SHAP {sv_m_s[i]:+.3f}"
+                                              for i in range(len(sv_m_s))]
+
+                                fig_m = go.Figure(go.Bar(
+                                    x=sv_m_s,
+                                    y=labs_m_s,
+                                    orientation='h',
+                                    marker_color=colors_m,
+                                    hovertext=hover_m,
+                                    hoverinfo='text',
+                                ))
+                                fig_m.add_vline(x=0, line_width=1, line_color='white', opacity=0.4)
+                                fig_m.update_layout(
+                                    title=f"SHAP Contribution to Memory Usage (batch={first_bs})",
+                                    paper_bgcolor='#0e1117',
+                                    plot_bgcolor='#0e1117',
+                                    font=dict(color='white'),
+                                    xaxis_title="SHAP value (MB scale)",
+                                    height=500,
+                                    margin=dict(l=200, r=20, t=50, b=40),
+                                )
+                                st.plotly_chart(fig_m, use_container_width=True)
+
+                            # ── Tab 3: global importance ───────────────────
+                            with st_s3:
+                                st.markdown(
+                                    "**Global feature importance** — mean |SHAP| across the training "
+                                    "dataset. Shows which architecture properties *generally* drive "
+                                    "execution time across all models."
+                                )
+                                fig_g = go.Figure(go.Bar(
+                                    x=global_imp['importance'],
+                                    y=global_imp['label'],
+                                    orientation='h',
+                                    marker=dict(
+                                        color=global_imp['importance'],
+                                        colorscale='Plasma',
+                                        showscale=True,
+                                        colorbar=dict(title='Importance'),
+                                    ),
+                                ))
+                                fig_g.update_layout(
+                                    title="Global Feature Importance (Exec Time Model)",
+                                    paper_bgcolor='#0e1117',
+                                    plot_bgcolor='#0e1117',
+                                    font=dict(color='white'),
+                                    xaxis_title="Mean |SHAP value|",
+                                    height=420,
+                                    margin=dict(l=180, r=60, t=50, b=40),
+                                )
+                                st.plotly_chart(fig_g, use_container_width=True)
+
+                        except Exception as _shap_err:
+                            st.warning(f"SHAP explanation unavailable: {_shap_err}")
+                # ── end SHAP section ──────────────────────────────────────
+
                 # Display model details
                 st.subheader("Model Details")
                 st.write(f"Total Parameters: {features['total_parameters']:,}")
                 st.write(f"Model Size: {features['model_size_mb']:.2f} MB")
+
                 
                 # Display performance metrics
                 st.subheader("Performance Metrics")
