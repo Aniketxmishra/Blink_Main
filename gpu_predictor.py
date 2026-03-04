@@ -299,6 +299,22 @@ class GPUPredictor:
             features = model_features.copy()
             features['batch_size'] = batch_size
 
+            # ── Scale activation memory with batch size ──────────────────────
+            # activation_memory_mb was estimated at batch_size=1 during feature
+            # extraction. The memory model needs the correct value for each
+            # candidate batch size, or memory stays flat and the optimizer
+            # always picks min_batch.
+            act_per_sample = model_features.get('activation_memory_per_sample')
+            if act_per_sample is None and model_features.get('activation_memory_mb'):
+                # Derive per-sample cost from base extraction (assumed batch=1)
+                act_per_sample = model_features['activation_memory_mb']
+            if act_per_sample:
+                features['activation_memory_mb'] = act_per_sample * batch_size
+                features['activation_memory_per_sample'] = act_per_sample
+            # weight_memory_mb doesn't scale with batch
+            features['weight_memory_mb'] = model_features.get('weight_memory_mb',
+                                            model_features.get('model_size_mb', 0))
+
             prediction_payload = self.predict(features)
             exec_time = max(prediction_payload['exec_time_ms'], 0.001)
             exec_lower = prediction_payload['exec_time_lower']

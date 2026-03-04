@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -85,6 +85,7 @@ def main():
             "Batch Size Optimizer", 
             "Model Comparison", 
             "Performance Monitor",
+            "Calibration",
             "About"
         ])
         
@@ -106,6 +107,8 @@ def main():
         show_model_comparison()
     elif page == "Performance Monitor":
         show_performance_monitor()
+    elif page == "Calibration":
+        show_calibration_page()
     else:
         show_about_page()
 
@@ -352,9 +355,9 @@ model = MyModel()'''
             pattern_data = {
                 "Pattern": ["Skip Connections", "Attention Mechanism", "Normalization Layers", "Model Depth"],
                 "Present": [
-                    "✓" if patterns['has_skip_connections'] else "✗",
-                    "✓" if patterns['has_attention'] else "✗",
-                    "✓" if patterns['has_normalization'] else "✗",
+                    "âœ“" if patterns['has_skip_connections'] else "âœ—",
+                    "âœ“" if patterns['has_attention'] else "âœ—",
+                    "âœ“" if patterns['has_normalization'] else "âœ—",
                     str(patterns['max_depth'])
                 ]
             }
@@ -486,7 +489,7 @@ def show_batch_optimizer(predictor, analyzer, memory_limit):
                         row=2, col=1
                     )
                      
-                    # Optimal batch size marker — use shapes (add_vline doesn't support row/col in subplots)
+                    # Optimal batch size marker â€” use shapes (add_vline doesn't support row/col in subplots)
                     optimal_batch = optimization_result['optimal_batch_size']
                     for row_idx in [1, 2]:
                         fig.add_shape(
@@ -833,6 +836,65 @@ def show_about_page():
     - Accuracy: < 6% error for most models
     - Scalability: Handles batch prediction and parallel processing
     """)
+
+
+def show_calibration_page():
+    """Priority 2: Confidence Interval Calibration"""
+    st.title("Confidence Interval Calibration")
+    st.markdown("""
+    Checks whether the **80% confidence intervals** produced by NeuSight's
+    quantile regression models actually contain ~80% of real measurements.
+    """)
+
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        if st.button("Run Calibration Check", type="primary"):
+            with st.spinner("Running calibration analysis..."):
+                import subprocess, sys
+                result = subprocess.run(
+                    [sys.executable, "scripts/calibration_check.py"],
+                    capture_output=True, text=True, cwd=os.getcwd()
+                )
+                if result.returncode == 0:
+                    st.success("Calibration check complete!")
+                    st.rerun()
+                else:
+                    st.error(f"Error: {result.stderr[:500]}")
+
+    report_path = "results/calibration_report.txt"
+    if os.path.exists(report_path):
+        with col2:
+            st.subheader("Summary")
+            with open(report_path) as f:
+                content = f.read()
+            for line in content.split("\n"):
+                if "WELL CALIBRATED" in line:
+                    st.success(line.strip())
+                elif "OVER-CONFIDENT" in line or "CONSERVATIVE" in line:
+                    st.warning(line.strip())
+                elif line.strip():
+                    st.text(line)
+
+    img_path = "results/calibration_reliability.png"
+    if os.path.exists(img_path):
+        st.subheader("Reliability Diagram")
+        st.image(img_path, use_container_width=True)
+        st.caption(
+            "Green bars = CI coverage within 5% of nominal 80% (well-calibrated). "
+            "Red bars = over-confident or too-wide intervals."
+        )
+    else:
+        st.info("Click 'Run Calibration Check' to generate the reliability diagram.")
+
+    with st.expander("What does calibration mean?"):
+        st.markdown("""
+        - **80% CI coverage = 80%**: Perfect calibration.
+        - **Coverage < 80%**: Over-confident intervals (too narrow).
+        - **Coverage > 80%**: Conservative intervals (too wide).
+
+        NeuSight uses **quantile regression** (10th/90th percentile XGBoost)
+        to produce CI bounds. This page verifies them against real measurements.
+        """)
 
 if __name__ == "__main__":
     import plotly.express as px  # Import here to avoid circular import
