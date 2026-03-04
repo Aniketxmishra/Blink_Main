@@ -406,226 +406,230 @@ def show_batch_optimizer(predictor, analyzer, memory_limit):
         
         if st.button("Find Optimal Batch Size"):
             with st.spinner("Analyzing model and finding optimal batch size..."):
-                # Extract features
                 features = analyzer.extract_features(model, (3, 224, 224))
-                
-                # Find optimal batch size
                 optimization_result = predictor.optimize_batch_size(
-                    features, 
-                    min_batch=min_batch, 
+                    features,
+                    min_batch=min_batch,
                     max_batch=max_batch,
                     memory_limit_mb=memory_limit
                 )
-                
-                # Guard: all batch sizes exceeded memory
-                if optimization_result.get('error'):
-                    st.error(optimization_result['error'])
-                else:
-                    batch_results = pd.DataFrame(optimization_result['batch_results'])
-                    pareto_pts    = optimization_result.get('pareto_front', [])
-                    pareto_df     = pd.DataFrame(pareto_pts) if pareto_pts else batch_results[batch_results.get('is_pareto', False)]
+                # Store in session_state so slider reruns don't lose the result
+                st.session_state['opt_result'] = optimization_result
+                st.session_state['opt_model_name_label'] = model_name
 
-                    st.subheader("Optimization Results")
+        # ── Render results from session_state (works across slider moves) ────
+        optimization_result = st.session_state.get('opt_result')
+        model_name_label    = st.session_state.get('opt_model_name_label', model_name)
 
-                    # ── Tab layout ────────────────────────────────────────────
-                    tab_pareto, tab_curves, tab_data = st.tabs([
-                        "Pareto Front", "Performance Curves", "Raw Data"
-                    ])
+        if optimization_result is not None:
+            if optimization_result.get('error'):
+                st.error(optimization_result['error'])
+            else:
+                batch_results = pd.DataFrame(optimization_result['batch_results'])
+                pareto_pts    = optimization_result.get('pareto_front', [])
+                pareto_df     = pd.DataFrame(pareto_pts) if pareto_pts else pd.DataFrame()
 
-                    # ────────────────────────────────────────────────────────
-                    # Tab 1: Pareto Front
-                    # ────────────────────────────────────────────────────────
-                    with tab_pareto:
-                        st.markdown(
-                            "**Pareto front** = the set of batch sizes where you cannot "
-                            "improve throughput without using more memory (and vice-versa). "
-                            "Use the slider to pick your preferred trade-off."
-                        )
+                st.subheader("Optimization Results")
 
-                        # User picks their trade-off preference
-                        pref = st.slider(
-                            "Trade-off preference",
-                            min_value=0, max_value=100, value=50,
-                            help="0 = maximise throughput (ignore memory cost), "
-                                 "100 = maximise efficiency (throughput / memory)",
-                            key="pareto_pref_slider"
-                        )
-                        alpha = pref / 100.0  # weight on efficiency
+                # ── Tab layout ────────────────────────────────────────────
+                tab_pareto, tab_curves, tab_data = st.tabs([
+                    "Pareto Front", "Performance Curves", "Raw Data"
+                ])
 
-                        # Score each point: blend throughput + efficiency
-                        if 'corrected_memory_mb' in batch_results.columns:
-                            mem_col = 'corrected_memory_mb'
-                        else:
-                            mem_col = 'memory_usage_mb'
+                # ────────────────────────────────────────────────────────
+                # Tab 1: Pareto Front
+                # ────────────────────────────────────────────────────────
+                with tab_pareto:
+                    st.markdown(
+                        "**Pareto front** = the set of batch sizes where you cannot "
+                        "improve throughput without using more memory (and vice-versa). "
+                        "Use the slider to pick your preferred trade-off."
+                    )
 
-                        br = batch_results.copy()
-                        br['_eff'] = br['throughput'] / br[mem_col].clip(lower=1)
-                        # Normalise both metrics to [0,1] for fair blending
-                        t_min, t_max = br['throughput'].min(), br['throughput'].max()
-                        e_min, e_max = br['_eff'].min(),        br['_eff'].max()
-                        br['_t_norm'] = (br['throughput'] - t_min) / max(t_max - t_min, 1e-9)
-                        br['_e_norm'] = (br['_eff']       - e_min) / max(e_max - e_min, 1e-9)
-                        br['_score']  = (1 - alpha) * br['_t_norm'] + alpha * br['_e_norm']
+                    # User picks their trade-off preference
+                    pref = st.slider(
+                        "Trade-off preference",
+                        min_value=0, max_value=100, value=50,
+                        help="0 = maximise throughput (ignore memory cost), "
+                             "100 = maximise efficiency (throughput / memory)",
+                        key="pareto_pref_slider"
+                    )
+                    alpha = pref / 100.0  # weight on efficiency
 
-                        # User-selected point = argmax of blended score
-                        user_row = br.loc[br['_score'].idxmax()]
-                        user_bs  = int(user_row['batch_size'])
+                    # Score each point: blend throughput + efficiency
+                    if 'corrected_memory_mb' in batch_results.columns:
+                        mem_col = 'corrected_memory_mb'
+                    else:
+                        mem_col = 'memory_usage_mb'
 
-                        # Build Pareto front scatter
-                        fig_pareto = go.Figure()
+                    br = batch_results.copy()
+                    br['_eff'] = br['throughput'] / br[mem_col].clip(lower=1)
+                    # Normalise both metrics to [0,1] for fair blending
+                    t_min, t_max = br['throughput'].min(), br['throughput'].max()
+                    e_min, e_max = br['_eff'].min(),        br['_eff'].max()
+                    br['_t_norm'] = (br['throughput'] - t_min) / max(t_max - t_min, 1e-9)
+                    br['_e_norm'] = (br['_eff']       - e_min) / max(e_max - e_min, 1e-9)
+                    br['_score']  = (1 - alpha) * br['_t_norm'] + alpha * br['_e_norm']
 
-                        # All points (grey)
+                    # User-selected point = argmax of blended score
+                    user_row = br.loc[br['_score'].idxmax()]
+                    user_bs  = int(user_row['batch_size'])
+
+                    # Build Pareto front scatter
+                    fig_pareto = go.Figure()
+
+                    # All points (grey)
+                    fig_pareto.add_trace(go.Scatter(
+                        x=br[mem_col], y=br['throughput'],
+                        mode='markers',
+                        marker=dict(color='#555', size=7, opacity=0.5),
+                        name='All batch sizes',
+                        text=[f"bs={int(r.batch_size)}" for r in br.itertuples()],
+                        hovertemplate="<b>bs=%{text}</b><br>Memory=%{x:.0f} MB<br>"
+                                      "Throughput=%{y:.0f} samples/s<extra></extra>"
+                    ))
+
+                    # Pareto front points (blue)
+                    if not pareto_df.empty and mem_col in pareto_df.columns:
+                        pf = pareto_df.sort_values(mem_col)
                         fig_pareto.add_trace(go.Scatter(
-                            x=br[mem_col], y=br['throughput'],
-                            mode='markers',
-                            marker=dict(color='#555', size=7, opacity=0.5),
-                            name='All batch sizes',
-                            text=[f"bs={int(r.batch_size)}" for r in br.itertuples()],
-                            hovertemplate="<b>bs=%{text}</b><br>Memory=%{x:.0f} MB<br>"
+                            x=pf[mem_col], y=pf['throughput'],
+                            mode='lines+markers',
+                            line=dict(color='#3498db', width=2, dash='dot'),
+                            marker=dict(color='#3498db', size=10,
+                                        line=dict(color='white', width=1)),
+                            name='Pareto front',
+                            text=[f"bs={int(r.batch_size)}" for r in pf.itertuples()],
+                            hovertemplate="<b>Pareto bs=%{text}</b><br>Memory=%{x:.0f} MB<br>"
                                           "Throughput=%{y:.0f} samples/s<extra></extra>"
                         ))
 
-                        # Pareto front points (blue)
-                        if not pareto_df.empty and mem_col in pareto_df.columns:
-                            pf = pareto_df.sort_values(mem_col)
-                            fig_pareto.add_trace(go.Scatter(
-                                x=pf[mem_col], y=pf['throughput'],
-                                mode='lines+markers',
-                                line=dict(color='#3498db', width=2, dash='dot'),
-                                marker=dict(color='#3498db', size=10,
-                                            line=dict(color='white', width=1)),
-                                name='Pareto front',
-                                text=[f"bs={int(r.batch_size)}" for r in pf.itertuples()],
-                                hovertemplate="<b>Pareto bs=%{text}</b><br>Memory=%{x:.0f} MB<br>"
-                                              "Throughput=%{y:.0f} samples/s<extra></extra>"
-                            ))
+                    # User-selected point (gold star)
+                    fig_pareto.add_trace(go.Scatter(
+                        x=[user_row[mem_col]], y=[user_row['throughput']],
+                        mode='markers',
+                        marker=dict(symbol='star', color='#f1c40f', size=18,
+                                    line=dict(color='white', width=1.5)),
+                        name=f'Your pick: bs={user_bs}',
+                        hovertemplate=f"<b>Selected: batch={user_bs}</b><br>"
+                                      f"Memory={user_row[mem_col]:.0f} MB<br>"
+                                      f"Throughput={user_row['throughput']:.0f} samples/s<extra></extra>"
+                    ))
 
-                        # User-selected point (gold star)
-                        fig_pareto.add_trace(go.Scatter(
-                            x=[user_row[mem_col]], y=[user_row['throughput']],
-                            mode='markers',
-                            marker=dict(symbol='star', color='#f1c40f', size=18,
-                                        line=dict(color='white', width=1.5)),
-                            name=f'Your pick: bs={user_bs}',
-                            hovertemplate=f"<b>Selected: batch={user_bs}</b><br>"
-                                          f"Memory={user_row[mem_col]:.0f} MB<br>"
-                                          f"Throughput={user_row['throughput']:.0f} samples/s<extra></extra>"
-                        ))
+                    fig_pareto.update_layout(
+                        height=420,
+                        xaxis_title="Predicted Memory Usage (MB)  — lower is better →",
+                        yaxis_title="Throughput (samples/s)  — higher is better ↑",
+                        title=f"Pareto Front: Throughput vs Memory  |  {model_name}",
+                        legend=dict(orientation='h', yanchor='bottom', y=1.02),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='#ccc'),
+                        xaxis=dict(gridcolor='#333'),
+                        yaxis=dict(gridcolor='#333'),
+                    )
+                    st.plotly_chart(fig_pareto, use_container_width=True)
 
-                        fig_pareto.update_layout(
-                            height=420,
-                            xaxis_title="Predicted Memory Usage (MB)  — lower is better →",
-                            yaxis_title="Throughput (samples/s)  — higher is better ↑",
-                            title=f"Pareto Front: Throughput vs Memory  |  {model_name}",
-                            legend=dict(orientation='h', yanchor='bottom', y=1.02),
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            font=dict(color='#ccc'),
-                            xaxis=dict(gridcolor='#333'),
-                            yaxis=dict(gridcolor='#333'),
-                        )
-                        st.plotly_chart(fig_pareto, use_container_width=True)
+                    # Metrics for user-selected point
+                    m1, m2, m3, m4 = st.columns(4)
+                    with m1:
+                        st.metric("Your Batch Size", user_bs)
+                    with m2:
+                        st.metric("Throughput", f"{user_row['throughput']:.0f} samples/s")
+                    with m3:
+                        st.metric("Memory", f"{user_row[mem_col]:.0f} MB")
+                    with m4:
+                        st.metric("Exec Time", f"{user_row['exec_time_ms']:.1f} ms")
 
-                        # Metrics for user-selected point
-                        m1, m2, m3, m4 = st.columns(4)
-                        with m1:
-                            st.metric("Your Batch Size", user_bs)
-                        with m2:
-                            st.metric("Throughput", f"{user_row['throughput']:.0f} samples/s")
-                        with m3:
-                            st.metric("Memory", f"{user_row[mem_col]:.0f} MB")
-                        with m4:
-                            st.metric("Exec Time", f"{user_row['exec_time_ms']:.1f} ms")
+                    # Also show the efficiency-optimal from the model
+                    opt_bs = optimization_result['optimal_batch_size']
+                    if opt_bs != user_bs:
+                        st.info(f"Model's efficiency-optimal recommendation: **batch={opt_bs}**  "
+                                f"(based on throughput/memory score). "
+                                f"Your slider pick: **batch={user_bs}**.")
+                    else:
+                        st.success(f"Your slider pick matches the model recommendation: **batch={opt_bs}**")
 
-                        # Also show the efficiency-optimal from the model
-                        opt_bs = optimization_result['optimal_batch_size']
-                        if opt_bs != user_bs:
-                            st.info(f"Model's efficiency-optimal recommendation: **batch={opt_bs}**  "
-                                    f"(based on throughput/memory score). "
-                                    f"Your slider pick: **batch={user_bs}**.")
-                        else:
-                            st.success(f"Your slider pick matches the model recommendation: **batch={opt_bs}**")
+                # ────────────────────────────────────────────────────────
+                # Tab 2: Performance Curves
+                # ────────────────────────────────────────────────────────
+                with tab_curves:
+                    fig = make_subplots(
+                        rows=2, cols=1,
+                        subplot_titles=("Execution Time vs Batch Size",
+                                        "Throughput vs Batch Size"),
+                        shared_xaxes=True, vertical_spacing=0.1
+                    )
 
-                    # ────────────────────────────────────────────────────────
-                    # Tab 2: Performance Curves
-                    # ────────────────────────────────────────────────────────
-                    with tab_curves:
-                        fig = make_subplots(
-                            rows=2, cols=1,
-                            subplot_titles=("Execution Time vs Batch Size",
-                                            "Throughput vs Batch Size"),
-                            shared_xaxes=True, vertical_spacing=0.1
-                        )
+                    x_values     = batch_results['batch_size'].tolist()
+                    x_rev        = x_values[::-1]
+                    y_upper      = batch_results['exec_upper_ms'].tolist()
+                    y_lower      = batch_results['exec_lower_ms'].tolist()
+                    y_lower_rev  = y_lower[::-1]
 
-                        x_values     = batch_results['batch_size'].tolist()
-                        x_rev        = x_values[::-1]
-                        y_upper      = batch_results['exec_upper_ms'].tolist()
-                        y_lower      = batch_results['exec_lower_ms'].tolist()
-                        y_lower_rev  = y_lower[::-1]
+                    fig.add_trace(go.Scatter(
+                        x=x_values + x_rev, y=y_upper + y_lower_rev,
+                        fill='toself', fillcolor='rgba(0,100,80,0.2)',
+                        line_color='rgba(255,255,255,0)', showlegend=False,
+                        name='Exec 80% CI'), row=1, col=1)
 
-                        fig.add_trace(go.Scatter(
-                            x=x_values + x_rev, y=y_upper + y_lower_rev,
-                            fill='toself', fillcolor='rgba(0,100,80,0.2)',
-                            line_color='rgba(255,255,255,0)', showlegend=False,
-                            name='Exec 80% CI'), row=1, col=1)
+                    fig.add_trace(go.Scatter(
+                        x=batch_results['batch_size'], y=batch_results['exec_time_ms'],
+                        mode='lines+markers', name='Exec Time (ms)',
+                        line_color='rgb(0,180,120)'), row=1, col=1)
 
-                        fig.add_trace(go.Scatter(
-                            x=batch_results['batch_size'], y=batch_results['exec_time_ms'],
-                            mode='lines+markers', name='Exec Time (ms)',
-                            line_color='rgb(0,180,120)'), row=1, col=1)
+                    fig.add_trace(go.Scatter(
+                        x=batch_results['batch_size'], y=batch_results['throughput'],
+                        mode='lines+markers', name='Throughput (samples/s)',
+                        line_color='#3498db'), row=2, col=1)
 
-                        fig.add_trace(go.Scatter(
-                            x=batch_results['batch_size'], y=batch_results['throughput'],
-                            mode='lines+markers', name='Throughput (samples/s)',
-                            line_color='#3498db'), row=2, col=1)
+                    # Mark both the model-optimal and user-selected points
+                    for bs_mark, color, label in [
+                        (optimization_result['optimal_batch_size'], 'lime',  'Model opt'),
+                        (user_bs, '#f1c40f', 'Your pick'),
+                    ]:
+                        for row_idx in [1, 2]:
+                            fig.add_shape(type='line',
+                                x0=bs_mark, x1=bs_mark, y0=0, y1=1, yref='paper',
+                                xref='x', line=dict(color=color, dash='dash'),
+                                row=row_idx, col=1)
+                        fig.add_annotation(
+                            x=bs_mark, y=1.02, yref='paper',
+                            text=f"{label}: {bs_mark}",
+                            showarrow=False, xanchor='left',
+                            font=dict(color=color, size=11))
 
-                        # Mark both the model-optimal and user-selected points
-                        for bs_mark, color, label in [
-                            (optimization_result['optimal_batch_size'], 'lime',  'Model opt'),
-                            (user_bs, '#f1c40f', 'Your pick'),
-                        ]:
-                            for row_idx in [1, 2]:
-                                fig.add_shape(type='line',
-                                    x0=bs_mark, x1=bs_mark, y0=0, y1=1, yref='paper',
-                                    xref='x', line=dict(color=color, dash='dash'),
-                                    row=row_idx, col=1)
-                            fig.add_annotation(
-                                x=bs_mark, y=1.02, yref='paper',
-                                text=f"{label}: {bs_mark}",
-                                showarrow=False, xanchor='left',
-                                font=dict(color=color, size=11))
+                    fig.update_layout(
+                        height=550,
+                        title=f"Batch Size Performance  |  {model_name}",
+                        showlegend=False,
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='#ccc'),
+                    )
+                    fig.update_xaxes(title_text="Batch Size", row=2, col=1,
+                                     gridcolor='#333')
+                    fig.update_yaxes(title_text="Exec Time (ms)", row=1, col=1,
+                                     gridcolor='#333')
+                    fig.update_yaxes(title_text="Throughput (samples/s)", row=2, col=1,
+                                     gridcolor='#333')
+                    st.plotly_chart(fig, use_container_width=True)
 
-                        fig.update_layout(
-                            height=550,
-                            title=f"Batch Size Performance  |  {model_name}",
-                            showlegend=False,
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            font=dict(color='#ccc'),
-                        )
-                        fig.update_xaxes(title_text="Batch Size", row=2, col=1,
-                                         gridcolor='#333')
-                        fig.update_yaxes(title_text="Exec Time (ms)", row=1, col=1,
-                                         gridcolor='#333')
-                        fig.update_yaxes(title_text="Throughput (samples/s)", row=2, col=1,
-                                         gridcolor='#333')
-                        st.plotly_chart(fig, use_container_width=True)
+                # ────────────────────────────────────────────────────────
+                # Tab 3: Raw Data
+                # ────────────────────────────────────────────────────────
+                with tab_data:
+                    st.subheader("All batch-size predictions")
+                    display_cols = [c for c in [
+                        'batch_size', 'exec_time_ms', 'exec_lower_ms', 'exec_upper_ms',
+                        'throughput', 'memory_usage_mb', 'corrected_memory_mb',
+                        'efficiency', 'is_pareto'
+                    ] if c in batch_results.columns]
+                    st.dataframe(batch_results[display_cols].style.highlight_max(
+                        subset=['throughput', 'efficiency'], color='#1a4a1a'
+                    ).highlight_min(subset=['memory_usage_mb'], color='#1a2a4a'))
 
-                    # ────────────────────────────────────────────────────────
-                    # Tab 3: Raw Data
-                    # ────────────────────────────────────────────────────────
-                    with tab_data:
-                        st.subheader("All batch-size predictions")
-                        display_cols = [c for c in [
-                            'batch_size', 'exec_time_ms', 'exec_lower_ms', 'exec_upper_ms',
-                            'throughput', 'memory_usage_mb', 'corrected_memory_mb',
-                            'efficiency', 'is_pareto'
-                        ] if c in batch_results.columns]
-                        st.dataframe(batch_results[display_cols].style.highlight_max(
-                            subset=['throughput', 'efficiency'], color='#1a4a1a'
-                        ).highlight_min(subset=['memory_usage_mb'], color='#1a2a4a'))
 
-    
     with col2:
         st.subheader("Optimization Strategy")
         st.info("""
