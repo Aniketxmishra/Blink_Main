@@ -319,38 +319,57 @@ class GPUPredictor:
 
         batch_results.sort(key=lambda x: x['batch_size'])
 
-        if len(batch_results) < 3:
-            optimal_row = batch_results[-1]
+        if len(batch_results) == 1:
+            optimal_row = batch_results[0]
         else:
-            # ── Knee / Elbow detection ──────────────────────────────────────
-            # Normalize batch sizes and throughputs to [0, 1]
-            bs = np.array([r['batch_size'] for r in batch_results], dtype=float)
-            tp = np.array([r['throughput'] for r in batch_results], dtype=float)
+            # ── Optimal batch: maximize throughput-efficiency ────────────────
+            # throughput = samples/sec; memory_usage grows with batch size.
+            # Pure argmax(throughput) always picks max_batch because GPU exec
+            # time scales sub-linearly (parallelism). Instead we maximize:
+            #
+            #   efficiency = throughput / memory_mb
+            #
+            # This is the metric that captures: "how many samples/sec per MB
+            # of GPU memory spent?" — giving diminishing returns at large batches
+            # where memory cost dominates.
 
-            bs_n = (bs - bs[0]) / max(bs[-1] - bs[0], 1e-9)
-            tp_n = (tp - tp[0]) / max(tp[-1] - tp[0], 1e-9)
+            for r in batch_results:
+                mem = max(r['memory_usage_mb'], 1.0)  # avoid div-by-zero
+                r['efficiency'] = r['throughput'] / mem
 
-            # Line from first point to last point on normalized curve
-            lx = bs_n[-1] - bs_n[0]
-            ly = tp_n[-1] - tp_n[0]
-            line_len = np.hypot(lx, ly)
+            # Pick the batch with the best efficiency
+            best_eff_row = max(batch_results, key=lambda r: r['efficiency'])
 
-            # Perpendicular distance of each point from that diagonal
-            dists = []
-            for bx, by in zip(bs_n, tp_n):
-                dx = bx - bs_n[0]
-                dy = by - tp_n[0]
-                # |cross product| / |line|
-                dist = abs(lx * dy - ly * dx) / max(line_len, 1e-9)
-                dists.append(dist)
+            # Secondary check: if a LARGER batch has only marginally better raw
+            # throughput (< 5% gain) vs. the efficiency winner, prefer the
+            # efficiency winner for memory headroom.
+            max_tp_row = max(batch_results, key=lambda r: r['throughput'])
+            tp_gain = (max_tp_row['throughput'] - best_eff_row['throughput']) \
+                      / max(best_eff_row['throughput'], 1e-9)
 
-            knee_idx = int(np.argmax(dists))
+            if tp_gain < 0.05:
+                # Max-throughput batch gives < 5% throughput gain — not worth it
+                optimal_row = best_eff_row
+            else:
+                # Significant gain available: pick halfway between efficiency
+                # knee and max-throughput using a weighted efficiency score
+                # (90% efficiency + 10% normalized throughput)
+                tp_vals = np.array([r['throughput'] for r in batch_results])
+                tp_min, tp_max = tp_vals.min(), tp_vals.max()
+                tp_range = max(tp_max - tp_min, 1e-9)
 
-            # Avoid recommending batch=1 if there's a clearly better knee further along
-            if knee_idx == 0 and len(batch_results) > 2:
-                knee_idx = int(np.argmax(dists[1:])) + 1
+                eff_vals = np.array([r['efficiency'] for r in batch_results])
+                eff_min, eff_max = eff_vals.min(), eff_vals.max()
+                eff_range = max(eff_max - eff_min, 1e-9)
 
-            optimal_row = batch_results[knee_idx]
+                scored = []
+                for r in batch_results:
+                    tp_norm  = (r['throughput']  - tp_min)  / tp_range
+                    eff_norm = (r['efficiency']  - eff_min) / eff_range
+                    score    = 0.4 * tp_norm + 0.6 * eff_norm
+                    scored.append((score, r))
+
+                optimal_row = max(scored, key=lambda x: x[0])[1]
 
         return {
             'optimal_batch_size': optimal_row['batch_size'],
