@@ -391,6 +391,14 @@ class GPUPredictor:
 
         optimal_row = max(batch_results, key=lambda r: r['efficiency'])
 
+        # ── Pareto front (Priority 4) ────────────────────────────────────────
+        # Non-dominated set in (throughput ↑, corrected_memory ↓) space.
+        # A point is Pareto-optimal if no other point has both higher throughput
+        # AND lower memory — i.e. any improvement in one metric costs the other.
+        pareto_indices = self._compute_pareto_indices(batch_results)
+        for i, r in enumerate(batch_results):
+            r['is_pareto'] = (i in pareto_indices)
+
         return {
             'optimal_batch_size': optimal_row['batch_size'],
             'predicted_execution_time': optimal_row['exec_time_ms'],
@@ -399,5 +407,27 @@ class GPUPredictor:
             'estimated_memory_usage': optimal_row['memory_usage_mb'],
             'memory_lower_mb': optimal_row['memory_lower_mb'],
             'memory_upper_mb': optimal_row['memory_upper_mb'],
-            'batch_results': batch_results
+            'batch_results': batch_results,
+            'pareto_front': [batch_results[i] for i in sorted(pareto_indices)],
         }
+
+    @staticmethod
+    def _compute_pareto_indices(batch_results):
+        """Return indices of Pareto-optimal points in (throughput↑, memory↓) space."""
+        n = len(batch_results)
+        is_pareto = [True] * n
+        for i in range(n):
+            ti = batch_results[i]['throughput']
+            mi = batch_results[i].get('corrected_memory_mb',
+                                      batch_results[i].get('memory_usage_mb', 1.0))
+            for j in range(n):
+                if i == j:
+                    continue
+                tj = batch_results[j]['throughput']
+                mj = batch_results[j].get('corrected_memory_mb',
+                                           batch_results[j].get('memory_usage_mb', 1.0))
+                # j dominates i if it has >= throughput AND <= memory, strictly one
+                if tj >= ti and mj <= mi and (tj > ti or mj < mi):
+                    is_pareto[i] = False
+                    break
+        return {i for i, v in enumerate(is_pareto) if v}
