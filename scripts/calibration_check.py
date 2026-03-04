@@ -1,4 +1,4 @@
-"""
+﻿"""
 scripts/calibration_check.py  —  Priority 2: Interval Calibration
 
 Checks whether the 80% confidence intervals produced by NeuSight's
@@ -222,7 +222,7 @@ def main():
 
     print("\nCalibration Summary:")
     for r in results:
-        status = '✅' if abs(r['coverage'] - 0.80) < 0.05 else '⚠️'
+        status = '[OK]' if abs(r['coverage'] - 0.80) < 0.05 else '[WARN]️'
         print(f"  {status} {r['label']}: {r['coverage']*100:.1f}% "
               f"(nominal 80%, width={r['avg_width']:.1f})")
 

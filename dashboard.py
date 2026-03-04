@@ -878,7 +878,7 @@ def show_calibration_page():
     img_path = "results/calibration_reliability.png"
     if os.path.exists(img_path):
         st.subheader("Reliability Diagram")
-        st.image(img_path, use_column_width=True)
+        st.image(img_path)
         st.caption(
             "Green bars = CI coverage within 5% of nominal 80% (well-calibrated). "
             "Red bars = over-confident or too-wide intervals."
