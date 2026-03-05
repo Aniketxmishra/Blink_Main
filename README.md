@@ -85,8 +85,13 @@ $ blink server --host 0.0.0.0 --port 8000
 
 Blink includes a rich, interactive web dashboard. Run `blink dashboard` to access:
 
+![Blink Dashboard SHAP Explainability Demo](results/figures/dashboard_shap_demo.png)
+
 - **Live Predictions:** Instantly predict performance for custom PyTorch code or TorchVision models.
 - **🔍 SHAP Explainability ("Why this prediction?"):** Interactive waterfall charts explaining exactly *which architectural features* (e.g., FLOPs, Conv layers, Model Depth) drove the predicted execution time and memory footprint up or down.
+
+![Blink Batch Optimizer Demo](results/figures/dashboard_batch_optimizer.png)
+
 - **Batch Size Optimizer:** Find the maximum batch size that fits within your specific GPU memory budget (e.g., 8GB, 16GB, 24GB).
 - **Compare Architectures:** Side-by-side performance comparison of different models.
 
