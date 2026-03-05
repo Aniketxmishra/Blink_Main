@@ -1,39 +1,136 @@
 ﻿# Blink 🔭
+
+[![PyPI version](https://badge.fury.io/py/blink-gpu.svg)](https://badge.fury.io/py/blink-gpu)
+[![CI](https://github.com/Aniketxmishra/Blink_Main/actions/workflows/ci.yml/badge.svg)](https://github.com/Aniketxmishra/Blink_Main/actions/workflows/ci.yml)
+![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 > **GPU Performance Predictor for Deep Learning Models**
 
-Blink predicts **execution time** and **memory usage** of PyTorch neural networks on GPU without actually running them. It combines classical ML (XGBoost, Random Forest) with a Graph Neural Network (GNN) that encodes the computational graph of any model architecture.
+**Blink** predicts the **execution time** and **peak memory usage** of PyTorch neural networks on GPU hardware *before* you actually run or deploy them. 
+
+It combines classical ML (XGBoost, Random Forest) with a Graph Neural Network (GNN) that encodes the computational graph of any model architecture, acting as a "virtual profiler."
 
 ---
 
-## 📋 Table of Contents
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Project Structure](#project-structure)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Data Pipeline](#data-pipeline)
-- [Model Performance](#model-performance)
-- [Dashboard](#dashboard)
-- [Paper Reproducibility](#paper-reproducibility)
+## ⚡ Quick Start
 
----
+### Installation
 
-## Overview
+Blink is published on PyPI. You can install the core API, or install with optional dependency groups:
 
-Given a PyTorch model and a batch size, Blink answers:
-- *How long will a forward pass take on this GPU?*
-- *How much GPU memory will it consume?*
+```bash
+# Core prediction API only
+pip install blink-gpu
 
-This is useful for:
-- **Batch size optimization** before deployment
-- **Hardware cost estimation** for training runs
-- **NAS (Neural Architecture Search)** — filtering architectures by predicted cost
+# Include Streamlit Dashboard, SHAP explainability, and Plotly
+pip install "blink-gpu[full]"
 
----
+# Include FastAPI REST Server
+pip install "blink-gpu[api]"
 
-## Architecture
-
+# Install everything
+pip install "blink-gpu[all]"
 ```
+
+*Note: You must install PyTorch (`torch`, `torchvision`) separately according to your CUDA hardware.*
+
+### Python Usage
+
+```python
+import torchvision.models as tv
+from blink import BlinkPredictor, BlinkAnalyzer
+
+# 1. Analyze any PyTorch model architecture
+model = tv.resnet18(weights=None)
+print(BlinkAnalyzer().summary(model))
+# ➔ Parameters: 11,689,512 | FLOPs: 1,814 M | Conv layers: 20 | Size: 44.59 MB
+
+# 2. Predict execution time and memory for a batch size
+predictor = BlinkPredictor()
+result = predictor.predict(model, batch_size=32)
+
+print(f"Exec time: {result['exec_time_ms']:.1f} ms")
+print(f"Memory   : {result['memory_mb']:.1f} MB")
+# ➔ Exec time: 18.3 ms | Memory: 184.3 MB
+
+# 3. Sweep multiple batch sizes
+sweep = predictor.predict_batch("resnet50", batch_sizes=[1, 16, 32, 64])
+```
+
+---
+
+## 💻 Command Line Interface (CLI)
+
+Blink comes with a built-in CLI for quick profiling without writing scripts:
+
+```bash
+# Predict via CLI
+$ blink predict resnet50 --batch-size 32
+🔮 Blink prediction for 'resnet50'
+ Batch   Exec (ms)   Memory (MB)  CI-Exec (80%)
+------------------------------------------------------------
+    32       28.45         294.5  [22.1 - 36.6]
+
+# Launch the Streamlit Dashboard
+$ blink dashboard --port 8501
+
+# Launch the FastAPI REST Server
+$ blink server --host 0.0.0.0 --port 8000
+```
+
+---
+
+## 📊 Streamlit Dashboard & Explainability
+
+Blink includes a rich, interactive web dashboard. Run `blink dashboard` to access:
+
+- **Live Predictions:** Instantly predict performance for custom PyTorch code or TorchVision models.
+- **🔍 SHAP Explainability ("Why this prediction?"):** Interactive waterfall charts explaining exactly *which architectural features* (e.g., FLOPs, Conv layers, Model Depth) drove the predicted execution time and memory footprint up or down.
+- **Batch Size Optimizer:** Find the maximum batch size that fits within your specific GPU memory budget (e.g., 8GB, 16GB, 24GB).
+- **Compare Architectures:** Side-by-side performance comparison of different models.
+
+---
+
+## 🌐 REST API & Docker Deployment
+
+Blink can be deployed as a microservice to provide GPU cost estimates to other applications.
+
+### Docker Compose (Recommended)
+You can spin up both the Streamlit Dashboard and the FastAPI backend instantly using Docker.
+
+```bash
+git clone https://github.com/Aniketxmishra/Blink_Main.git
+cd Blink_Main
+docker compose up -d
+```
+- **Dashboard:** `http://localhost:8501`
+- **REST API:** `http://localhost:8000/docs` (Swagger UI)
+
+### REST API Example
+```bash
+curl -X POST "http://localhost:8000/api/v2/predict" \
+     -H "Content-Type: application/json" \
+     -d '{"model_name": "resnet50", "batch_size": 32}'
+
+# Response:
+# {
+#   "model_name": "resnet50",
+#   "batch_size": 32,
+#   "predictions": {
+#     "exec_time_ms": 28.45,
+#     "exec_time_bounds": [22.1, 36.6],
+#     "memory_usage_mb": 294.5,
+#     ...
+#   }
+# }
+```
+
+---
+
+## 🧠 How it Works (Architecture)
+
+```text
 PyTorch Model
       │
       ▼
@@ -46,213 +143,37 @@ PyTorch Model
 ┌─────────────────────┐
 │  Prediction Models  │
 │  ─────────────────  │
-│  · XGBoost (tuned)  │  ← main predictor (best MAPE)
-│  · Random Forest    │  ← ensemble comparison
+│  · XGBoost (tuned)  │  ← main predictor (best MAPE) + SHAP Explainer
+│  · Random Forest    │  ← latency confidence intervals (Quantile Regression)
 │  · GNN Predictor    │  ← graph-native, generalizes across architectures
-│  · Linear / Ridge   │  ← baselines
 └─────────┬───────────┘
           │
           ▼
-   Predicted: execution_time_ms, memory_mb
-   + Uncertainty bounds (lower / upper)
+   Predicted: exec_time_ms, memory_mb
 ```
+
+**Model Performance on Held-out Data:**
+- **Execution Time (XGBoost):** ~8% MAPE
+- **Memory Usage (XGBoost):** ~6% MAPE
 
 ---
 
-## Project Structure
+## 🔬 Development & Paper Reproducibility
 
-```
-Blink/
-├── dashboard.py             # 🖥️  Main Streamlit web app  (run this)
-├── prediction_api.py        # 🌐  Flask REST API
-│
-├── ── Core ML Modules ──
-│   ├── model_profiler.py    # GPU profiler (CUDA events)
-│   ├── feature_extractor.py # Static feature extraction from nn.Module
-│   ├── gnn_extractor.py     # GNN-based graph feature extraction
-│   ├── gnn_model.py         # ArchitectureGNN model definition (PyG)
-│   ├── prediction_model.py  # Train XGBoost / RF / Linear models
-│   ├── train_gnn.py         # Train the GNN predictor
-│   ├── train_memory_model.py# Train memory prediction model
-│   ├── gpu_predictor.py     # Inference class with caching & batch support
-│   ├── model_analyser.py    # Model complexity analysis utilities
-│   ├── advanced_features.py # Extended feature engineering
-│   ├── dynamic_predictor.py # Dynamic / online prediction
-│   ├── gpu_info.py          # GPU metadata (pynvml)
-│   ├── workload_scheduler.py# Batch workload scheduler
-│   └── performance_monitor.py
-│
-├── scripts/                 # 🔬  Experiment & data scripts
-│   ├── collect_data.py      # Profile CNN/Transformer/custom models → data/raw/
-│   ├── enhance_dataset.py   # Augment dataset (more batch sizes / models)
-│   ├── diverse_architectures.py  # Profile diverse arch families
-│   ├── ablation_study.py    # 5-condition ablation (Table II in paper)
-│   ├── generate_paper_figures.py # Reproduce all paper figures
-│   └── generate_paper_tables.py  # Reproduce paper tables
-│
-├── tests/                   # ✅  Test suite
-│   ├── test_diverse_models.py
-│   ├── test_predictors.py
-│   ├── test_profiler.py
-│   ├── test_gnn_scaling.py
-│   └── evaluate_gnn_vs_xgb.py
-│
-├── data/
-│   ├── raw/                 # Raw profiling CSVs (gitignored)
-│   ├── processed/           # Feature-engineered CSVs
-│   ├── enriched/            # Final training-ready dataset
-│   └── feedback_log.csv     # Online feedback loop log
-│
-├── models/                  # Serialized model artifacts (gitignored)
-│   ├── xgboost_(tuned)_model.joblib
-│   ├── random_forest_model.joblib
-│   ├── gnn_predictor.pth
-│   ├── memory_model.joblib
-│   └── ...
-│
-├── results/
-│   ├── figures/             # Paper figures (PNG)
-│   ├── ablation_study_table.csv
-│   ├── gnn_scaling_table.csv
-│   └── ...
-│
-├── templates/index.html     # HTML template for web interface
-├── legacy/                  # Archived / superseded scripts
-├── requirements.txt
-└── .gitignore
-```
+Blink was developed alongside a research study evaluating the efficacy of static and graph-based features for GPU performance prediction.
 
----
-
-## Installation
-
+**To reproduce the paper's figures and ablation study:**
 ```bash
-# 1. Clone the repo
-git clone <your-repo-url>
-cd Blink
+git clone https://github.com/Aniketxmishra/Blink_Main.git
+cd Blink_Main
+pip install -e ".[full]"
 
-# 2. Create a virtual environment
-python -m venv venv
-venv\Scripts\activate        # Windows
-# source venv/bin/activate   # Linux/macOS
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Install PyTorch Geometric (match your CUDA version)
-# See: https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html
-pip install torch-geometric
-```
-
-**Requirements:** NVIDIA GPU with CUDA, Python ≥ 3.10
-
----
-
-## Usage
-
-### 1. Launch the Dashboard
-```bash
-streamlit run dashboard.py
-```
-Features: live model prediction, batch size optimizer, model comparison, performance monitor.
-
-### 2. Collect Profiling Data
-```bash
-python scripts/collect_data.py --batch-sizes 1 4 16 32 64
-```
-
-### 3. Train Prediction Models
-```bash
-# Train XGBoost / RF / Linear baseline models
-python prediction_model.py
-
-# Train GNN predictor
-python train_gnn.py
-
-# Train memory model
-python train_memory_model.py
-```
-
-### 4. Run Ablation Study
-```bash
 python scripts/ablation_study.py
-```
-
-### 5. Predict via Python API
-```python
-from gpu_predictor import GPUPredictor
-import torchvision.models as models
-
-predictor = GPUPredictor()
-model = models.resnet50(pretrained=False)
-result = predictor.predict_for_custom_model(model, batch_size=16)
-print(result)
-# {'execution_time_ms': 12.4, 'memory_mb': 1820, 'confidence_lower': 11.1, ...}
-```
-
----
-
-## Data Pipeline
-
-```
-collect_data.py
-    └─▶ data/raw/*.csv          (GPU profiling measurements)
-            │
-            ▼
-feature_extractor.py
-    └─▶ data/processed/*.csv    (static model features)
-            │
-            ▼
-enhance_dataset.py
-    └─▶ data/enriched/*.csv     (augmented, training-ready)
-            │
-            ▼
-prediction_model.py / train_gnn.py
-    └─▶ models/                 (trained predictors)
-```
-
----
-
-## Model Performance
-
-Results on held-out test set (20% split):
-
-| Model | Exec Time MAPE | Memory MAPE | Notes |
-|---|---|---|---|
-| XGBoost (tuned) | ~8% | ~6% | Best overall |
-| Random Forest | ~11% | ~9% | Robust baseline |
-| GNN Predictor | ~10% | ~8% | Best on unseen architectures |
-| Linear Regression | ~22% | ~19% | Baseline |
-
-*(Full ablation study results: `results/ablation_study_table.csv`)*
-
----
-
-## Dashboard
-
-The Streamlit dashboard (`dashboard.py`) provides:
-
-| Tab | Description |
-|---|---|
-| 🎯 Prediction | Predict execution time & memory for standard or custom models |
-| ⚡ Batch Optimizer | Find optimal batch size within a memory budget |
-| 📊 Model Comparison | Compare predictions across multiple architectures |
-| 📈 Performance Monitor | Live GPU utilization and prediction history |
-
----
-
-## Paper Reproducibility
-
-To reproduce all paper figures and tables:
-```bash
 python scripts/generate_paper_figures.py
-python scripts/generate_paper_tables.py
-python scripts/ablation_study.py
 ```
-Outputs saved to `results/figures/`.
+*Outputs will be saved to the `results/` directory.*
 
 ---
 
-## License
-
-MIT License — see [LICENSE](LICENSE) for details.
+## 📄 License
+MIT License — see [LICENSE](LICENSE) for details. Made by [Aniket Mishra](https://github.com/Aniketxmishra).
