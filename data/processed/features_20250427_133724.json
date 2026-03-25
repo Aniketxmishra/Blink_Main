@@ -1,0 +1,5 @@
+[
+  {
+    "model_name": "vgg16",
+    "input_shape": "(3, 224, 224)",
+    "total_parameters": 

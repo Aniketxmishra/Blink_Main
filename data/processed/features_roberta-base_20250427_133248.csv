@@ -1,0 +1,4 @@
+model_name,batch_size,input_shape,execution_time_ms,total_parameters,trainable_parameters,model_size_mb,device
+roberta-base,1,"(128,)",87.29841709136963,124645632,124645632,475.4931945800781,cpu
+roberta-base,2,"(128,)",128.32553386688232,124645632,124645632,475.4931945800781,cpu
+roberta-base,4,"(128,)",214.674973487854,124645632,124645632,475.4931945800781,cpu

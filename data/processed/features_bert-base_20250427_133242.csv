@@ -1,0 +1,4 @@
+model_name,batch_size,input_shape,execution_time_ms,total_parameters,trainable_parameters,model_size_mb,device
+bert-base,1,"(128,)",87.75601387023926,109482240,109482240,417.6494140625,cpu
+bert-base,2,"(128,)",127.3479700088501,109482240,109482240,417.6494140625,cpu
+bert-base,4,"(128,)",214.5435571670532,109482240,109482240,417.6494140625,cpu

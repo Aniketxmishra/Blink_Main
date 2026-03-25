@@ -1,0 +1,4 @@
+model_name,batch_size,input_shape,execution_time_ms,total_parameters,trainable_parameters,model_size_mb,device
+efficientnet_b0,1,"(3, 224, 224)",26.600027084350582,5288548,5288548,20.334861755371094,cpu
+efficientnet_b0,2,"(3, 224, 224)",40.49994945526123,5288548,5288548,20.334861755371094,cpu
+efficientnet_b0,4,"(3, 224, 224)",63.72458934783936,5288548,5288548,20.334861755371094,cpu

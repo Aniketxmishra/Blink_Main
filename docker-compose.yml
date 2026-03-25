@@ -1,0 +1,74 @@
+# ────────────────────────────────────────────────────────────────────────────
+# Blink — docker-compose.yml
+#
+# Runs two services from the same image:
+#   blink-dashboard   → http://localhost:8501  (Streamlit UI)
+#   blink-api         → http://localhost:8000  (FastAPI REST  /docs)
+#
+# Requires NVIDIA Container Toolkit for GPU access:
+#   https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
+#
+# Start:    docker compose up --build
+# API only: docker compose up blink-api
+# Detach:   docker compose up -d
+# ────────────────────────────────────────────────────────────────────────────
+
+version: "3.9"
+
+services:
+
+  # ── Streamlit Dashboard ────────────────────────────────────────────────────
+  blink-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: blink:latest
+    container_name: blink-dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    volumes:
+      # Mount models + data so the container uses the host's trained files
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
+      - ./results:/app/results
+    environment:
+      - STREAMLIT_SERVER_HEADLESS=true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: >
+      streamlit run dashboard.py
+      --server.port=8501
+      --server.address=0.0.0.0
+      --server.headless=true
+
+  # ── FastAPI REST Server ────────────────────────────────────────────────────
+  blink-api:
+    image: blink:latest          # reuses the image built above
+    container_name: blink-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
+      - ./results:/app/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: >
+      uvicorn api.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 2
+    depends_on:
+      - blink-dashboard            # ensures image is built first

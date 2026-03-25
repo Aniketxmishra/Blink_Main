@@ -1,0 +1,59 @@
+# Implementation Plan: Blink-LLM Pilot & Enterprise Readiness
+
+Blink currently excels at predicting performance for Computer Vision architectures (CNNs, Vision Transformers). This implementation plan outlines the steps to pivot the project to support **Generative AI & Large Language Models (LLMs)** and incorporate **Enterprise Readiness** features like Quantization parsing and CI/CD integration.
+
+## Goal Description
+1. **Extend Feature Extraction**: Update [model_analyser.py](file:///c:/Aniket/review%20blink/Neusight/model_analyser.py) to parse standard Hugging Face Transformer parameters (vocab size, hidden dimension, sequence length, attention heads).
+2. **KV Cache Modeling**: Implement physically-grounded equations to estimate KV cache memory usage during inference.
+3. **Quantization Support**: Add awareness for standard quantization formats (INT8, INT4) predicting how reduced precision affects latency and VRAM footprint.
+4. **CI/CD Integration**: Provide a GitHub action/Python script template enabling users to test PRs against latency budgets automatically.
+
+## User Review Required
+> [!IMPORTANT]
+> - Do you want us to separate the predictions for **Prefill (Time-To-First-Token)** vs. **Decode (Time-Per-Output-Token)**, or combine them into a single forward pass latency metric? Separation is strongly recommended for LLMs.
+> - For CI/CD Integration, would you prefer a standalone Python script, or a fully fleshed-out Dockerized GitHub Action YAML?
+
+## Proposed Changes
+
+### Core Extraction & Memory Modeling
+
+#### [MODIFY] [model_analyser.py](file:///c:/Aniket/review%20blink/Neusight/model_analyser.py)
+- Update [extract_features](file:///c:/Aniket/review%20blink/Neusight/model_analyser.py#36-127) to detect `transformers.PreTrainedModel` instances.
+- Extract `vocab_size`, `hidden_size`, `num_attention_heads`, `num_hidden_layers`, etc.
+- In [_estimate_activation_memory_mb](file:///c:/Aniket/review%20blink/Neusight/model_analyser.py#130-172), add an explicit branch for LLMs to compute **KV Cache Memory**:
+  ```python
+  # Memory scaling for generative decoding
+  kv_cache_bytes = 2 * batch_size * seq_len * num_heads * head_dim * bytes_per_param * num_hidden_layers
+  ```
+
+#### [MODIFY] [gpu_info.py](file:///c:/Aniket/review%20blink/Neusight/gpu_info.py)
+- Incorporate data types (`fp32`, `fp16`, `int8`, `int4`) to dynamically adjust available bandwidth metrics and peak hardware TFLOPS based on tensor core precision levels.
+
+### Profiling and Data Collection
+
+#### [MODIFY] [scripts/collect_data.py](file:///c:/Aniket/review%20blink/Neusight/scripts/collect_data.py)
+- Expand the [profile_transformer_model](file:///c:/Aniket/review%20blink/Neusight/scripts/collect_data.py#121-194) to load Causal LMs (e.g., `Llama-2-7b`, `Mistral-7B`).
+- Alter the timing execution to separate `prefill` (passing the full prompt) and `decode` (generating 1 token).
+- Integrate `bitsandbytes` to profile `load_in_8bit=True` and `load_in_4bit=True` configurations.
+
+### Prediction & API Structure
+
+#### [MODIFY] [prediction_model.py](file:///c:/Aniket/review%20blink/Neusight/prediction_model.py)
+- Add new columns to `feature_cols`: `quantization_bits`, `kv_cache_size_mb`, `vocab_size`, `seq_len`.
+- Refit the default XGBoost model and memory models utilizing these new variables.
+
+#### [NEW] [blink_github_action.py](file:///c:/Aniket/review%20blink/Neusight/blink_github_action.py)
+- A standalone script that runs `GPUPredictor` against a target model and breaks the build (`exit 1`) if the predicted `exec_upper_ms` strictly exceeds a defined `--sla-latency-ms` limit.
+
+#### [NEW] [.github/workflows/blink_pr_check.yml](file:///c:/Aniket/review%20blink/Neusight/.github/workflows/blink_pr_check.yml)
+- A GitHub Actions workflow that executes `blink_github_action.py` for Continuous Integration.
+
+## Verification Plan
+
+### Automated Tests
+- Run [collect_data.py](file:///c:/Aniket/review%20blink/Neusight/scripts/collect_data.py) on a tiny transformer (e.g., `gpt2` or `TinyLlama`) across FP16 and INT8 parameter footprints. Verify the timing drops and memory drops match the expected equations.
+- Run [prediction_model.py](file:///c:/Aniket/review%20blink/Neusight/prediction_model.py) training script to ensure the newly added features are correctly ingested by the XGBoost and Quantile Regression models.
+
+### Manual Verification
+- Execute `blink_github_action.py` locally simulating a PR that breaks a strict latency SLA (e.g., setting SLA to `10ms` for a large model) and verify the script outputs a useful exit code and terminal explanation.
+- Verify SHAP Explainer charts correctly identify `kv_cache_size_mb` or `seq_len` as primary drivers for transformer memory allocation.

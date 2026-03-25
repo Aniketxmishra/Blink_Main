@@ -1,0 +1,130 @@
+[build-system]
+requires      = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+# ── Project metadata ──────────────────────────────────────────────────────────
+[project]
+name            = "blink-gpu"
+version         = "0.1.0"
+description     = "Predict GPU execution time & memory for PyTorch models — without running them."
+readme          = "README.md"
+license         = { text = "MIT" }
+requires-python = ">=3.9"
+
+authors = [
+    { name = "Aniket Mishra", email = "aniket@blink-gpu.dev" },
+]
+
+keywords = [
+    "gpu", "performance", "prediction", "pytorch", "neural-network",
+    "profiling", "machine-learning", "explainability",
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Hardware",
+]
+
+# Core dependencies (torch / torchvision installed separately by user)
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scikit-learn>=1.3",
+    "xgboost>=2.0",
+    "joblib>=1.3",
+    "thop>=0.1.1",
+]
+
+# ── Optional dependency groups ────────────────────────────────────────────────
+[project.optional-dependencies]
+
+# Full training + dashboard stack
+full = [
+    "optuna",
+    "lightgbm",
+    "pynvml",
+    "shap>=0.44",
+    "streamlit>=1.30",
+    "plotly>=5.18",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+]
+
+# REST API
+api = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "python-multipart",
+    "httpx",
+]
+
+# GNN support
+gnn = [
+    "torch-geometric",
+]
+
+# Explainability
+explain = [
+    "shap>=0.44",
+]
+
+# Developer / CI
+dev = [
+    "pytest>=7.4",
+    "pytest-cov",
+    "ruff",
+    "black",
+    "mypy",
+    "pre-commit",
+]
+
+# Everything
+all = [
+    "blink-gpu[full,api,gnn,explain,dev]",
+]
+
+# ── Entry points ──────────────────────────────────────────────────────────────
+[project.scripts]
+blink        = "blink.__main__:main"
+blink-server = "blink.__main__:serve"
+
+# ── URLs ──────────────────────────────────────────────────────────────────────
+[project.urls]
+Homepage      = "https://github.com/Aniketxmishra/Blink_Main"
+Documentation = "https://github.com/Aniketxmishra/Blink_Main#readme"
+Repository    = "https://github.com/Aniketxmishra/Blink_Main.git"
+"Bug Tracker" = "https://github.com/Aniketxmishra/Blink_Main/issues"
+
+# ── Package discovery ─────────────────────────────────────────────────────────
+[tool.setuptools.packages.find]
+include = ["blink*"]
+
+[tool.setuptools.package-data]
+"blink" = ["py.typed"]
+
+# ── Ruff (linter) ─────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
+
+# ── pytest ────────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths    = ["tests"]
+addopts      = "-v --tb=short"
+filterwarnings = [
+    "ignore::FutureWarning",
+    "ignore::DeprecationWarning",
+]

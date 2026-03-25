@@ -1,0 +1,4 @@
+model_name,batch_size,input_shape,execution_time_ms,total_parameters,trainable_parameters,model_size_mb,device
+mobilenet_v2,1,"(3, 224, 224)",22.49999046325684,3504872,3504872,13.50054931640625,cpu
+mobilenet_v2,2,"(3, 224, 224)",29.471445083618164,3504872,3504872,13.50054931640625,cpu
+mobilenet_v2,4,"(3, 224, 224)",43.00014972686768,3504872,3504872,13.50054931640625,cpu

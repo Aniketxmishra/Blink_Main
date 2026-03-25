@@ -1,0 +1,3 @@
+Train/Test Split Methodology: Grouped by Model Architecture (Holdout validation)
+Held out models: bert-base, convnext_tiny, mobilenet_v2, vgg16
+Overall MAPE: 69.53% ± 65.72%

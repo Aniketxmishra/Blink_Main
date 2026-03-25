@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: ["master", "main"]
+  pull_request:
+    branches: ["master", "main"]
+
+# Cancel in-progress runs if a newer commit arrives
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: "Test — Python ${{ matrix.python-version }}"
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install CPU-only PyTorch (small, fast)
+        run: |
+          pip install torch==2.2.0 torchvision==0.17.0 \
+            --index-url https://download.pytorch.org/whl/cpu \
+            --quiet
+
+      - name: Install blink-gpu + test deps
+        run: |
+          pip install -e ".[dev]" --quiet
+          pip install pytest pytest-cov --quiet
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/test_blink_sdk.py \
+            --cov=blink \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            -v
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: matrix.python-version == '3.11'
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+
+  lint:
+    name: "Lint (ruff)"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install ruff
+        run: pip install ruff --quiet
+      - name: Run ruff on blink/ package
+        run: ruff check blink/

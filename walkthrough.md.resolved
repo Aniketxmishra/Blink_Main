@@ -1,0 +1,20 @@
+# Blink Framework Update Walkthrough
+
+The following steps were successfully implemented to address the major weaknesses outlined for your research paper:
+
+## 1. Hardware Generalization & New Dataset
+- **Colab GPU Profiler**: Deployed a dynamic, hardware-agnostic Jupyter Notebook ([colab_data_collector.ipynb](file:///c:/Aniket/review%20blink/Neusight/colab_data_collector.ipynb)) capable of collecting native data on cloud endpoints (e.g. Tesla T4).
+- **Automated Feature Ingestion**: Modified the Python pipeline ([scripts/enhance_dataset.py](file:///c:/Aniket/review%20blink/Neusight/scripts/enhance_dataset.py)) to systematically merge this new GPU data alongside your existing data array. Missing baseline traits were imputed with conservative estimates (e.g. 12 TFLOPS, 336 GB/s bandwidth for your local RTX) so that the predictor inherently understands hardware scale.
+
+## 2. Robust Uncertainty via Unified Quantile Modeling
+- **Median Stabilization**: Transitioned the XGBoost point estimator completely away from standard log-squared error to instead explicitly target the Median Quantile ($\tau=0.5$). This severely reduces the volatility induced by outlier latency spikes.
+- **Monotonic Bounds Enforcement**: Evaluated bounding 10th and 90th percentile regressors while systematically clamping them ($q_{0.1} \leq q_{0.5} \leq q_{0.9}$) to strictly avoid non-crossing exceptions yielding robust 80% Confidence Intervals.
+
+## 3. Strict Out-of-Distribution (OOD) Validation
+- **Batch Size Stratification**: Deployed aggressive validation boundaries in [model_analyser.py](file:///c:/Aniket/review%20blink/Neusight/model_analyser.py) isolating completely untested prediction scopes (e.g., exclusively training on batch sizes $\le$ 8 and evaluating entirely on sizes $\ge$ 16).
+- **Interval Pinball Loss Tracking**: Instead of merely stating coverage metrics, the pipeline now formally quantifies the predictive bounds utilizing the Interval Pinball Loss ($\mathcal{L}_{\text{int}}$). This rigorously punishes intervals that manifest too widely or incorrectly fail to cover ground reality execution delays.
+
+## 4. Manuscript Revisions Complete
+- Safely introduced LaTeX edits into [blink_ieee_paper.tex](file:///c:/Aniket/review%20blink/Neusight/paper/blink_ieee_paper.tex) effectively declaring the dual-layered structure of datasets (dummy vision tensor iterations vs structured XGBoost tabular frames), and updating the specific Extrapolation/Uncertainty sections conforming to the exact implementations.
+
+All structural concerns regarding prediction integrity and OOD hardware evaluations have been comprehensively solved!

@@ -1,0 +1,4 @@
+model_name,batch_size,input_shape,execution_time_ms,total_parameters,trainable_parameters,model_size_mb,device
+simple_model,1,"(3, 224, 224)",4.271888732910156,1008618,1008618,3.847572326660156,cpu
+simple_model,2,"(3, 224, 224)",5.899953842163086,1008618,1008618,3.847572326660156,cpu
+simple_model,4,"(3, 224, 224)",8.556914329528809,1008618,1008618,3.847572326660156,cpu

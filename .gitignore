@@ -1,0 +1,67 @@
+# ─── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# ─── Virtual Environments ──────────────────────────────────────────────────
+gpu_prediction_env/
+venv/
+env/
+.env
+.venv/
+
+# ─── Large model checkpoints (downloaded / external) ──────────────────────
+github_models/
+
+# ─── Trained model artifacts (regeneratable) ──────────────────────────────
+models/*.joblib
+models/*.pth
+
+# ─── Raw / large data files ────────────────────────────────────────────────
+data/raw/
+data/temp/
+
+# ─── Logs and runtime output ───────────────────────────────────────────────
+*.log
+*.txt
+!requirements.txt
+!results/**/*.txt
+
+# ─── Jupyter ───────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ─── IDE / OS ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─── Optuna / ML experiment DBs ────────────────────────────────────────────
+*.db
+*.sqlite3
+
+# ─── Temp / scratch ────────────────────────────────────────────────────────
+tmp/
+temp/
+
+# ─── Presentation Artifacts ────────────────────────────────────────────────
+presentation_documents/
+presentation_diagrams/
+
