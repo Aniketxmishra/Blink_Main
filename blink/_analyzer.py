@@ -40,7 +40,7 @@ class BlinkAnalyzer:
 
     def _get(self):
         if self._analyser is None:
-            from model_analyser import ModelAnalyzer
+            from .model_analyser import ModelAnalyzer
             self._analyser = ModelAnalyzer()
         return self._analyser
 

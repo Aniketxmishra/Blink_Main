@@ -58,7 +58,7 @@ class ArchitectureGNN(nn.Module):
         return out
 
 if __name__ == '__main__':
-    from gnn_extractor import model_to_graph
+    from .gnn_extractor import model_to_graph
     from torchvision.models import resnet18
     
     # Test creation

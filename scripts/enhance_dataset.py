@@ -5,7 +5,7 @@ import glob
 import torch
 import torch.nn as nn
 import torchvision.models as models
-from feature_extractor import ModelFeatureExtractor
+from blink.feature_extractor import ModelFeatureExtractor
 
 class SimpleCNN(nn.Module):
     def __init__(self, num_layers=3, channels=16):

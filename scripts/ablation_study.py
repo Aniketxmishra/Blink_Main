@@ -4,7 +4,7 @@ import glob
 from sklearn.model_selection import train_test_split
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_absolute_percentage_error
-from gnn_model import ArchitectureGNN
+from blink.gnn_model import ArchitectureGNN
 import torch
 
 def detect_arch_family(model_name):
@@ -112,7 +112,7 @@ def run_ablation_study():
         print(f"Could not load GNN: {e}")
     
     if gnn_loaded:
-        from gnn_extractor import model_to_graph
+        from blink.gnn_extractor import model_to_graph
         import torchvision.models as models
         
         model_builders = {

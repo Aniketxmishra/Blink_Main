@@ -1,5 +1,5 @@
 import torchvision.models as models
-from gpu_predictor import GPUPredictor
+from blink.gpu_predictor import GPUPredictor
 p = GPUPredictor()
 assert len(p.feature_cols) == 19
 result = p.predict_for_custom_model(models.resnet50(), batch_size=16)

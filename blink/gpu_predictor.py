@@ -67,7 +67,7 @@ class GPUPredictor:
         from pathlib import Path
         _gnn_path = os.path.join(_md, 'gnn_predictor.pth')
         if Path(_gnn_path).exists():
-            from gnn_model import ArchitectureGNN
+            from .gnn_model import ArchitectureGNN
             import torch
             
             self.use_gnn = True
@@ -214,8 +214,8 @@ class GPUPredictor:
     def predict_for_custom_model(self, model, batch_size):
         import torch
         import torch.nn as nn
-        from feature_extractor import ModelFeatureExtractor
-        from gnn_extractor import model_to_graph
+        from .feature_extractor import ModelFeatureExtractor
+        from .gnn_extractor import model_to_graph
         
         # Determine fallback path first
         needs_fallback = True

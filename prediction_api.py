@@ -6,7 +6,7 @@ import os
 import torch
 import torch.nn as nn
 from thop import profile
-from feature_extractor import ModelFeatureExtractor
+from blink.feature_extractor import ModelFeatureExtractor
 
 def load_model(model_path='models/random_forest_model.joblib', memory_model_path='models/memory_model.joblib'):
     """Load the trained prediction models"""
@@ -169,7 +169,7 @@ def predict_memory_usage(memory_model, bounds, model_features, batch_sizes=[1, 2
 def predict_with_gnn(model: nn.Module, batch_size: int):
     """Predict execution time and memory usage for a custom PyTorch model using GNN or fallback to XGBoost"""
     # Import here to avoid circular dependencies
-    from gpu_predictor import GPUPredictor
+    from blink.gpu_predictor import GPUPredictor
     
     predictor = GPUPredictor()
     result = predictor.predict_for_custom_model(model, batch_size)

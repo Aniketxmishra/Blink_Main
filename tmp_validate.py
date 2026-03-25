@@ -1,4 +1,4 @@
-from gpu_predictor import GPUPredictor
+from blink.gpu_predictor import GPUPredictor
 import torchvision.models as models
 
 print("1. Verifying feature count...")

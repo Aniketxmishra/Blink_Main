@@ -9,8 +9,8 @@ import torch.nn as nn
 import torchvision.models as models
 import os
 import time
-from gpu_predictor import GPUPredictor
-from model_analyser import ModelAnalyzer
+from blink.gpu_predictor import GPUPredictor
+from blink.model_analyser import ModelAnalyzer
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 

@@ -68,7 +68,7 @@ _analyzer  = None
 def get_predictor():
     global _predictor
     if _predictor is None:
-        from gpu_predictor import GPUPredictor
+        from blink.gpu_predictor import GPUPredictor
         _predictor = GPUPredictor(
             model_path='models/random_forest_model.joblib',
             memory_model_path='models/memory_model.joblib',
@@ -78,7 +78,7 @@ def get_predictor():
 def get_analyzer():
     global _analyzer
     if _analyzer is None:
-        from model_analyser import ModelAnalyzer
+        from blink.model_analyser import ModelAnalyzer
         _analyzer = ModelAnalyzer()
     return _analyzer
 

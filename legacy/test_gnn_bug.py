@@ -1,6 +1,6 @@
 import torch
-from gnn_model import ArchitectureGNN
-from gnn_extractor import model_to_graph
+from blink.gnn_model import ArchitectureGNN
+from blink.gnn_extractor import model_to_graph
 from torchvision.models import resnet18, vgg16
 
 # Load model if exists, or randomly initialize

@@ -46,8 +46,8 @@ def run_sla_check(args):
         project_root = os.path.dirname(os.path.abspath(__file__))
         sys.path.insert(0, project_root)
 
-        from gpu_predictor import GPUPredictor
-        from model_analyser import ModelAnalyzer
+        from blink.gpu_predictor import GPUPredictor
+        from blink.model_analyser import ModelAnalyzer
     except ImportError as e:
         print(f"\n[ERROR] Could not import Blink modules: {e}")
         print("Make sure you are running from the project root directory.")

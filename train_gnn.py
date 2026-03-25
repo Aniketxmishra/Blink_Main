@@ -7,8 +7,8 @@ import torch.nn as nn
 from torch_geometric.data import Data, Dataset
 from torch_geometric.loader import DataLoader
 from sklearn.model_selection import train_test_split
-from gnn_extractor import model_to_graph
-from gnn_model import ArchitectureGNN
+from blink.gnn_extractor import model_to_graph
+from blink.gnn_model import ArchitectureGNN
 import torchvision.models as models
 try:
     from transformers import BertModel, RobertaModel, GPT2Model

@@ -241,7 +241,7 @@ def train_models(df, target='execution_time_ms', test_size=0.2, random_state=42)
 
 def evaluate_ood(models, bounds_models, feature_cols, df):
     """Run strict OOD tests based on unseen batch sizes and model families."""
-    from model_analyser import ModelAnalyzer
+    from blink.model_analyser import ModelAnalyzer
     
     # Needs re-loading with full df
     df_clean = df.copy()
@@ -293,7 +293,7 @@ def visualize_results(models, results, X_test, y_test, best_model_name, bounds_m
     
     # Add bounds evaluation if they exist
     if bounds_models:
-        from model_analyser import ModelAnalyzer
+        from blink.model_analyser import ModelAnalyzer
         q_lower = np.expm1(bounds_models['lower'].predict(X_test))
         q_upper = np.expm1(bounds_models['upper'].predict(X_test))
         

@@ -1,8 +1,8 @@
 """Quick test: does the retrained GNN properly differentiate batch sizes?"""
 import torch
 import numpy as np
-from gnn_model import ArchitectureGNN
-from gnn_extractor import model_to_graph
+from blink.gnn_model import ArchitectureGNN
+from blink.gnn_extractor import model_to_graph
 import torchvision.models as models
 
 gnn = ArchitectureGNN()
