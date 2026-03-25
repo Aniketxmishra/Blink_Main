@@ -1,11 +1,11 @@
-import torch
-import torch.nn as nn
-import pandas as pd
-import numpy as np
 import os
 from collections import defaultdict
-import json
-from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+
 
 class ModelFeatureExtractor:
     """Extract features from PyTorch models for GPU usage prediction"""
@@ -215,7 +215,7 @@ class ModelFeatureExtractor:
 if __name__ == "__main__":
     # Install thop for FLOPs counting if not already installed
     try:
-        import thop
+        import thop  # noqa: F401
     except ImportError:
         import subprocess
         subprocess.check_call(["pip", "install", "thop"])

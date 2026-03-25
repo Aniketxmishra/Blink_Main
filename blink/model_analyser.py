@@ -13,17 +13,13 @@ Key additions:
   - Separates prefill and decode memory estimates for autoregressive models.
   - Quantization-aware: scales bytes_per_param for fp16, int8, and int4.
 """
+import concurrent.futures
+from collections import defaultdict
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-import pandas as pd
-from collections import defaultdict
-import glob
-import os
-import json
-import concurrent.futures
-from sklearn.model_selection import train_test_split, KFold, GroupShuffleSplit
-import xgboost as xgb
+from sklearn.model_selection import GroupShuffleSplit, train_test_split
 
 
 class ModelAnalyzer:
@@ -75,12 +71,12 @@ class ModelAnalyzer:
         num_attn_layers   = len(attn_layers)
 
         avg_conv_kernel_size = (
-            float(np.mean([l['kernel'] for l in conv_layers])) if conv_layers else 0.0
+            float(np.mean([layer['kernel'] for layer in conv_layers])) if conv_layers else 0.0
         )
-        max_conv_channels = max([l['out_ch'] for l in conv_layers], default=0)
-        total_conv_params = sum(l['params'] for l in conv_layers)
-        max_fc_size       = max([l['out_features'] for l in linear_layers], default=0)
-        total_fc_params   = sum(l['params'] for l in linear_layers)
+        max_conv_channels = max([layer['out_ch'] for layer in conv_layers], default=0)
+        total_conv_params = sum(layer['params'] for layer in conv_layers)
+        max_fc_size       = max([layer['out_features'] for layer in linear_layers], default=0)
+        total_fc_params   = sum(layer['params'] for layer in linear_layers)
 
         # ── FLOPs (fast manual estimate; avoids thop dependency overhead) ─────
         flops = self._estimate_flops(model, input_shape)
@@ -298,7 +294,8 @@ class ModelAnalyzer:
             # Standard conv output spatial size
             H_out = (H + 2 * padding - kernel) // stride + 1
             W_out = (W + 2 * padding - kernel) // stride + 1
-            H_out = max(H_out, 1); W_out = max(W_out, 1)
+            H_out = max(H_out, 1)
+            W_out = max(W_out, 1)
             total_bytes += out_ch * H_out * W_out * bytes_per_element
             # Update H, W for next layer estimate (approximate)
             if stride > 1:

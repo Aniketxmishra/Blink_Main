@@ -1,7 +1,7 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from torch_geometric.data import Data
-import numpy as np
 
 # Define known layer types for one-hot encoding
 LAYER_TYPES = ['Conv', 'Linear', 'Norm', 'Pool', 'Attention', 'Other']

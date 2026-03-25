@@ -3,9 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GATConv, global_mean_pool
 
+
 class ArchitectureGNN(nn.Module):
     def __init__(self, node_feature_dim=12, hidden_dim=64):
-        super(ArchitectureGNN, self).__init__()
+        super().__init__()
         
         # 3 x GATConv layers
         self.conv1 = GATConv(node_feature_dim, hidden_dim, heads=4, concat=False)
@@ -58,8 +59,9 @@ class ArchitectureGNN(nn.Module):
         return out
 
 if __name__ == '__main__':
-    from .gnn_extractor import model_to_graph
     from torchvision.models import resnet18
+
+    from .gnn_extractor import model_to_graph
     
     # Test creation
     model = ArchitectureGNN()

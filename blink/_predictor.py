@@ -6,6 +6,7 @@ BlinkPredictor — public-facing facade over gpu_predictor.GPUPredictor.
 from __future__ import annotations
 
 from pathlib import Path
+
 import torch.nn as nn
 
 _DEFAULT_MODELS_DIR = Path(__file__).parent / "weights"
@@ -34,7 +35,7 @@ class BlinkPredictor:
 
     def _get_predictor(self):
         if self._predictor is None:
-            from .gpu_predictor import GPUPredictor          # ✅ relative
+            from .gpu_predictor import GPUPredictor  # ✅ relative
             self._predictor = GPUPredictor(
                 model_path=str(self._models_dir / "median_quantile_(0.5)_model.joblib"),
                 memory_model_path=str(self._models_dir / "memory_model.joblib"),
@@ -52,7 +53,7 @@ class BlinkPredictor:
         if isinstance(model, str):
             model = _load_named_model(model)
 
-        from .model_analyser import ModelAnalyzer            # ✅ relative
+        from .model_analyser import ModelAnalyzer  # ✅ relative
         analyser = ModelAnalyzer()
         features = analyser.extract_features(model, input_shape)
         features["batch_size"] = batch_size

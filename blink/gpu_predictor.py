@@ -1,9 +1,10 @@
-import joblib
-import pandas as pd
-import numpy as np
 import os
+
+import joblib
+import numpy as np
+import pandas as pd
 import torch
-from datetime import datetime
+
 
 def _find_models_dir():
     from pathlib import Path
@@ -12,7 +13,8 @@ def _find_models_dir():
         Path(__file__).parent / "weights",
         Path(__file__).parent / "blink" / "weights",
     ]:
-        if p.exists(): return str(p)
+        if p.exists():
+            return str(p)
     raise FileNotFoundError("Blink weights not found. pip install blink-gpu")
 
 
@@ -59,7 +61,7 @@ class GPUPredictor:
             self.model_upper = joblib.load(os.path.join(_md, 'execution_upper_model.joblib'))
             self.has_exec_bounds = True
         except FileNotFoundError:
-            print(f"Warning: Execution bound models not found. Intervals will not be available.")
+            print("Warning: Execution bound models not found. Intervals will not be available.")
             self.has_exec_bounds = False
             self.model_lower = None
             self.model_upper = None
@@ -67,8 +69,9 @@ class GPUPredictor:
         from pathlib import Path
         _gnn_path = os.path.join(_md, 'gnn_predictor.pth')
         if Path(_gnn_path).exists():
-            from .gnn_model import ArchitectureGNN
             import torch
+
+            from .gnn_model import ArchitectureGNN
             
             self.use_gnn = True
             self.gnn_model = ArchitectureGNN()
@@ -212,8 +215,8 @@ class GPUPredictor:
         return results[0] if len(results) == 1 else results
         
     def predict_for_custom_model(self, model, batch_size):
-        import torch
         import torch.nn as nn
+
         from .feature_extractor import ModelFeatureExtractor
         from .gnn_extractor import model_to_graph
         
