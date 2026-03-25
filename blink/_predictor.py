@@ -16,7 +16,7 @@ _ROOT = Path(__file__).parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-_DEFAULT_MODELS_DIR = _ROOT / "models"
+_DEFAULT_MODELS_DIR = Path(__file__).parent / "weights"
 
 
 class BlinkPredictor:
@@ -60,7 +60,7 @@ class BlinkPredictor:
         if self._predictor is None:
             from gpu_predictor import GPUPredictor
             self._predictor = GPUPredictor(
-                model_path=str(self._models_dir / "random_forest_model.joblib"),
+                model_path=str(self._models_dir / "median_quantile_(0.5)_model.joblib"),
                 memory_model_path=str(self._models_dir / "memory_model.joblib"),
             )
         return self._predictor

@@ -109,7 +109,7 @@ Repository    = "https://github.com/Aniketxmishra/Blink_Main.git"
 include = ["blink*"]
 
 [tool.setuptools.package-data]
-"blink" = ["py.typed"]
+"blink" = ["py.typed", "weights/*.joblib", "weights/*.json"]
 
 # ── Ruff (linter) ─────────────────────────────────────────────────────────────
 [tool.ruff]

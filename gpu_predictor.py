@@ -5,20 +5,36 @@ import os
 import torch
 from datetime import datetime
 
+def _find_models_dir():
+    from pathlib import Path
+    for p in [
+        Path.cwd() / "models",
+        Path(__file__).parent / "weights",
+        Path(__file__).parent / "blink" / "weights",
+    ]:
+        if p.exists(): return str(p)
+    raise FileNotFoundError("Blink weights not found. pip install blink-gpu")
+
+
 class GPUPredictor:
     """Scalable GPU usage prediction system with caching and batch processing"""
     
-    def __init__(self, model_path='models/median_quantile_(0.5)_model.joblib', 
-                 memory_model_path='models/memory_model.joblib', cache_size=100):
+    def __init__(self, model_path=None, memory_model_path=None, cache_size=100):
+        _md = _find_models_dir()
+        if model_path is None:
+            model_path = os.path.join(_md, 'median_quantile_(0.5)_model.joblib')
+        if memory_model_path is None:
+            memory_model_path = os.path.join(_md, 'memory_model.joblib')
+        _md = os.path.dirname(model_path)
         self.model = joblib.load(model_path)
         try:
             self.memory_model = joblib.load(memory_model_path)
-            self.memory_model_lower = joblib.load('models/memory_lower_model.joblib')
-            self.memory_model_upper = joblib.load('models/memory_upper_model.joblib')
+            self.memory_model_lower = joblib.load(os.path.join(_md, 'memory_lower_model.joblib'))
+            self.memory_model_upper = joblib.load(os.path.join(_md, 'memory_upper_model.joblib'))
             self.has_memory_model = True
             # Load activation-aware feature list saved during training
             import json
-            mem_feat_path = 'models/memory_model_features.json'
+            mem_feat_path = os.path.join(_md, 'memory_model_features.json')
             if os.path.exists(mem_feat_path):
                 with open(mem_feat_path) as f:
                     self.memory_feature_cols = json.load(f)['features']
@@ -39,8 +55,8 @@ class GPUPredictor:
             self.memory_feature_cols = []
             
         try:
-            self.model_lower = joblib.load('models/execution_lower_model.joblib')
-            self.model_upper = joblib.load('models/execution_upper_model.joblib')
+            self.model_lower = joblib.load(os.path.join(_md, 'execution_lower_model.joblib'))
+            self.model_upper = joblib.load(os.path.join(_md, 'execution_upper_model.joblib'))
             self.has_exec_bounds = True
         except FileNotFoundError:
             print(f"Warning: Execution bound models not found. Intervals will not be available.")
@@ -49,13 +65,14 @@ class GPUPredictor:
             self.model_upper = None
             
         from pathlib import Path
-        if Path("models/gnn_predictor.pth").exists():
+        _gnn_path = os.path.join(_md, 'gnn_predictor.pth')
+        if Path(_gnn_path).exists():
             from gnn_model import ArchitectureGNN
             import torch
             
             self.use_gnn = True
             self.gnn_model = ArchitectureGNN()
-            self.gnn_model.load_state_dict(torch.load("models/gnn_predictor.pth", map_location='cpu'))
+            self.gnn_model.load_state_dict(torch.load(_gnn_path, map_location='cpu'))
             self.gnn_model.eval()
             print("Loaded ArchitectureGNN from models/gnn_predictor.pth")
         else:
