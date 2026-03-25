@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 # ── Project metadata ──────────────────────────────────────────────────────────
 [project]
 name            = "blink-gpu"
-version         = "0.1.0"
+version         = "0.1.5"
 description     = "Predict GPU execution time & memory for PyTorch models — without running them."
 readme          = "README.md"
 license         = { text = "MIT" }
