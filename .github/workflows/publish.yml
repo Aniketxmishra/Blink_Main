@@ -43,11 +43,11 @@ jobs:
 
       # TEMPORARILY DISABLED — feature mismatch fix in progress
       # Re-enable after gpu_predictor.py is verified correct
-      # - name: Upload to PyPI
-      #   env:
-      #     TWINE_USERNAME: __token__
-      #     TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-      #   run: python -m twine upload dist/*
+      - name: Upload to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: python -m twine upload dist/*
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
