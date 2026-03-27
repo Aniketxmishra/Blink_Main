@@ -1,8 +1,10 @@
-import pytest
+from unittest.mock import MagicMock, patch
+
 import numpy as np
-import pandas as pd
-from unittest.mock import patch, MagicMock
+import pytest
+
 from blink.gpu_predictor import GPUPredictor
+
 
 class FakeModel:
     def __init__(self, output_val, is_log=True):

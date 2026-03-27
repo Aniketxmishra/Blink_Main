@@ -1,13 +1,14 @@
-from model_profiler import ModelProfiler
-import torch
-import torch.nn as nn
-import torchvision.models as models
 import argparse
 import os
 import time
-import pandas as pd
 from datetime import datetime
 
+import pandas as pd
+import torch
+import torch.nn as nn
+import torchvision.models as models
+
+from model_profiler import ModelProfiler
 
 NUM_WARMUP_RUNS = 3   # warm up GPU caches before timing
 NUM_TIMING_RUNS = 5   # number of timed runs to average
@@ -284,7 +285,7 @@ def _profile_prefill_and_decode(model, model_name, batch_size, seq_len,
         input_ids      = torch.randint(0, 1000, (batch_size, seq_len),   device=device)
         single_tok_ids = torch.randint(0, 1000, (batch_size, 1),         device=device)
         attn_full  = torch.ones((batch_size, seq_len), device=device, dtype=torch.long)
-        attn_single = torch.ones((batch_size, 1), device=device, dtype=torch.long)
+        torch.ones((batch_size, 1), device=device, dtype=torch.long)
 
         # ── Prefill ─────────────────────────────────────────────────────────
         # Run the model on the full sequence with use_cache=True so it
@@ -371,7 +372,7 @@ def profile_custom_models(profiler, batch_sizes):
     
     class SimpleCNN(nn.Module):
         def __init__(self, num_layers=3, channels=16):
-            super(SimpleCNN, self).__init__()
+            super().__init__()
             layers = []
             in_channels = 3
             

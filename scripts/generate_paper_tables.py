@@ -3,14 +3,17 @@
 2. Table I: Real GPU timing numbers from profiled CSVs
 3. GNN scaling ratio table (BS=1 vs BS=32)
 """
-import pandas as pd
-import numpy as np
 import glob
+
+import numpy as np
+import pandas as pd
 import torch
-from xgboost import XGBRegressor
-from blink.gnn_model import ArchitectureGNN
-from blink.gnn_extractor import model_to_graph
 import torchvision.models as models
+from xgboost import XGBRegressor
+
+from blink.gnn_extractor import model_to_graph
+from blink.gnn_model import ArchitectureGNN
+
 
 def detect_arch_family(model_name):
     families = {

@@ -1,13 +1,15 @@
-import torch
-import time
-import os
-import sys
-import subprocess
-from pathlib import Path
 import importlib.util
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import torch
 
 # Add your prediction API
-from prediction_api import load_model, extract_model_features, predict_execution_time
+from prediction_api import extract_model_features, load_model, predict_execution_time
+
 
 def clone_github_repo(repo_url, target_dir):
     """Clone a GitHub repository if it doesn't exist"""

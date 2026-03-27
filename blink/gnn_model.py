@@ -5,7 +5,7 @@ from torch_geometric.nn import GATConv, global_mean_pool
 
 
 class ArchitectureGNN(nn.Module):
-    def __init__(self, node_feature_dim=12, hidden_dim=64):
+    def __init__(self, node_feature_dim=12, hidden_dim=128):
         super().__init__()
         
         # 3 x GATConv layers

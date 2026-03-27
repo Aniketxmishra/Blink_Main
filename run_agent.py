@@ -1,7 +1,5 @@
 import itertools
 import subprocess
-import time
-import os
 import sys
 
 # Example pseudo-code for an autoresearch loop using a generic LLM client.
@@ -34,7 +32,7 @@ def run_evaluation():
         return float('inf'), str(e)
 
 def get_file_content(filepath):
-    with open(filepath, 'r') as f:
+    with open(filepath) as f:
         return f.read()
 
 def ask_llm_for_changes(current_code, instructions, best_score, last_feedback):
@@ -86,7 +84,7 @@ def main():
             last_feedback = f"Great! Your changes improved the score to {new_score}."
             # Optionally commit to git here
         else:
-            print(f"No improvement. Reverting.")
+            print("No improvement. Reverting.")
             with open(TARGET_FILE, 'w') as f:
                 f.write(current_code)
             last_feedback = f"Your changes worsened the score (or failed) with output: {stdout_or_err[:500]}..."

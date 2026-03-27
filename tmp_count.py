@@ -1,6 +1,6 @@
-import pandas as pd
 import glob
-import os
+
+import pandas as pd
 
 df = None
 files = glob.glob('data/enriched/*.csv')

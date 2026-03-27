@@ -1,7 +1,9 @@
 import pytest
 import torch
-from blink.gnn_model import ArchitectureGNN
 from torch_geometric.data import Data
+
+from blink.gnn_model import ArchitectureGNN
+
 
 @pytest.fixture
 def dummy_graph():

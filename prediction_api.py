@@ -1,12 +1,14 @@
+import argparse
+import os
+
 import joblib
 import numpy as np
 import pandas as pd
-import argparse
-import os
 import torch
 import torch.nn as nn
-from thop import profile
+
 from blink.feature_extractor import ModelFeatureExtractor
+
 
 def load_model(model_path='models/random_forest_model.joblib', memory_model_path='models/memory_model.joblib'):
     """Load the trained prediction models"""
@@ -210,7 +212,7 @@ def predict_for_custom_model(prediction_model, memory_model, bounds, custom_mode
         })
     
     # Print results
-    print(f"\nModel Features:")
+    print("\nModel Features:")
     print(f"  Total Parameters: {features['total_parameters']:,}")
     print(f"  Model Size: {features['model_size_mb']:.2f} MB")
     
@@ -226,7 +228,7 @@ def create_sample_model(num_layers=3, channels=16):
     """Create a sample CNN model for testing"""
     class SampleCNN(nn.Module):
         def __init__(self, num_layers=3, channels=16):
-            super(SampleCNN, self).__init__()
+            super().__init__()
             layers = []
             in_channels = 3
             
@@ -272,7 +274,7 @@ def main():
         sample_model = create_sample_model(args.layers, args.channels)
         
         # Predict execution time
-        predictions = predict_for_custom_model(
+        predict_for_custom_model(
             prediction_model, 
             memory_model,
             bounds,

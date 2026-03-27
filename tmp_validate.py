@@ -1,5 +1,6 @@
-from blink.gpu_predictor import GPUPredictor
 import torchvision.models as models
+
+from blink.gpu_predictor import GPUPredictor
 
 print("1. Verifying feature count...")
 predictor = GPUPredictor()
@@ -10,6 +11,7 @@ print("\n2. Verifying custom model prediction (also checks XGBoost column mismat
 result = predictor.predict_for_custom_model(models.resnet50(), batch_size=16)
 print("Prediction Result:")
 import pprint
+
 pprint.pprint(result)
 
 print("\n3 & 4. Verifying cache key stability...")

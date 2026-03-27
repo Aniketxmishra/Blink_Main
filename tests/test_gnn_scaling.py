@@ -1,9 +1,10 @@
 """Quick test: does the retrained GNN properly differentiate batch sizes?"""
-import torch
 import numpy as np
-from blink.gnn_model import ArchitectureGNN
-from blink.gnn_extractor import model_to_graph
+import torch
 import torchvision.models as models
+
+from blink.gnn_extractor import model_to_graph
+from blink.gnn_model import ArchitectureGNN
 
 gnn = ArchitectureGNN()
 gnn.load_state_dict(torch.load('models/gnn_predictor.pth', map_location='cpu', weights_only=True))

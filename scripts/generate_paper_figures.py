@@ -1,12 +1,13 @@
-import pandas as pd
-import numpy as np
 import glob
+import os
+
 import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
+import pandas as pd
+import shap
 from sklearn.model_selection import train_test_split
 from xgboost import XGBRegressor
-import shap
-import os
+
 
 def generate_statistics_and_figures():
     os.makedirs('results/figures', exist_ok=True)
@@ -53,7 +54,7 @@ def generate_statistics_and_figures():
     print(f"Final Model Accuracy: {mean_mape:.2f}% ± {std_mape:.2f}%")
     
     with open('results/final_metrics.txt', 'w') as f:
-        f.write(f"Train/Test Split Methodology: Grouped by Model Architecture (Holdout validation)\n")
+        f.write("Train/Test Split Methodology: Grouped by Model Architecture (Holdout validation)\n")
         f.write(f"Held out models: {', '.join(test_models)}\n")
         f.write(f"Overall MAPE: {mean_mape:.2f}% ± {std_mape:.2f}%\n")
         

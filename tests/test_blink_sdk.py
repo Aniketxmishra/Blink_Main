@@ -5,10 +5,10 @@ Fast, GPU-free tests for the installable blink-gpu SDK.
 Designed to run in GitHub Actions CI (no GPU, no real models needed).
 All tests mock or use tiny synthetic models so the suite completes in < 30 s.
 """
-import sys
 import os
+import sys
+
 import pytest
-import numpy as np
 
 # Ensure project root is importable
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -83,8 +83,9 @@ class TestBlinkAnalyzer:
         assert not missing, f"Missing keys: {missing}"
 
     def test_analyze_parameter_count_correct(self):
-        from blink import BlinkAnalyzer
         import torch.nn as nn
+
+        from blink import BlinkAnalyzer
         model = nn.Linear(10, 5)   # 10*5 + 5 = 55 parameters
         feats = BlinkAnalyzer().analyze(model, input_shape=(1, 10))
         assert feats["total_parameters"] == 55
@@ -103,6 +104,7 @@ class TestBlinkAnalyzer:
     def test_analyze_conv_model(self):
         """Ensure conv layers are counted correctly."""
         import torch.nn as nn
+
         from blink import BlinkAnalyzer
         model = nn.Sequential(
             nn.Conv2d(3, 16, 3, padding=1),

@@ -1,7 +1,8 @@
+from collections import Counter
+
 import torch
 import torch.nn as nn
-import numpy as np
-from collections import Counter
+
 
 def count_layer_types(model):
     """Count different types of layers in the model"""
@@ -25,7 +26,7 @@ def compute_flops(model, input_shape):
         macs, _ = profile(model, inputs=(dummy_input,))
         flops = macs * 2  # Approximate FLOPs as 2 * MACs
         return flops
-    except:
+    except Exception:
         # Fallback to a simple heuristic if thop is not available
         total_params = sum(p.numel() for p in model.parameters())
         return total_params * 2  # Very rough approximation

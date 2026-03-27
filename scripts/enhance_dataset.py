@@ -1,15 +1,18 @@
-import pandas as pd
-import numpy as np
-import os
 import glob
+import os
+
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torchvision.models as models
+
 from blink.feature_extractor import ModelFeatureExtractor
+
 
 class SimpleCNN(nn.Module):
     def __init__(self, num_layers=3, channels=16):
-        super(SimpleCNN, self).__init__()
+        super().__init__()
         layers = []
         in_channels = 3
         
@@ -68,7 +71,7 @@ def get_model_instance(model_name):
         
     # Transformers
     if model_name in ['bert-base', 'roberta-base', 'gpt2']:
-        from transformers import AutoModel, AutoConfig
+        from transformers import AutoConfig, AutoModel
         try:
             if model_name == 'bert-base':
                 config = AutoConfig.from_pretrained('bert-base-uncased')

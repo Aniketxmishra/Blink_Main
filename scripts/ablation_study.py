@@ -1,11 +1,13 @@
-import pandas as pd
-import numpy as np
 import glob
-from sklearn.model_selection import train_test_split
-from xgboost import XGBRegressor
-from sklearn.metrics import mean_absolute_percentage_error
-from blink.gnn_model import ArchitectureGNN
+
+import numpy as np
+import pandas as pd
 import torch
+from sklearn.metrics import mean_absolute_percentage_error
+from xgboost import XGBRegressor
+
+from blink.gnn_model import ArchitectureGNN
+
 
 def detect_arch_family(model_name):
     """Detect architecture family as a categorical feature for XGBoost."""
@@ -112,8 +114,9 @@ def run_ablation_study():
         print(f"Could not load GNN: {e}")
     
     if gnn_loaded:
-        from blink.gnn_extractor import model_to_graph
         import torchvision.models as models
+
+        from blink.gnn_extractor import model_to_graph
         
         model_builders = {
             'resnet18': lambda: models.resnet18(weights=None),

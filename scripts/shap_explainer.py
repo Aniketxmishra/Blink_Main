@@ -14,9 +14,10 @@ from __future__ import annotations
 
 import os
 import sys
+
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)

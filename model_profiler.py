@@ -1,13 +1,13 @@
-import torch
-import torch.nn as nn
-import torchvision.models as models
-import pandas as pd
-import time
-import numpy as np
-import pynvml as nvml
-import json
-from datetime import datetime
 import os
+import time
+from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import pynvml as nvml
+import torch
+import torchvision.models as models
+
 
 class ModelProfiler:
     def __init__(self, save_dir='data/raw', num_iterations=10):

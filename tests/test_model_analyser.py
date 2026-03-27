@@ -1,5 +1,5 @@
-import pytest
 import torch.nn as nn
+
 from blink.model_analyser import ModelAnalyzer
 
 

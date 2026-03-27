@@ -1,7 +1,9 @@
 import asyncio
-from playwright.async_api import async_playwright
 import time
 from pathlib import Path
+
+from playwright.async_api import async_playwright
+
 
 async def capture_dashboard():
     results_dir = Path("results/figures")

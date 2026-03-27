@@ -1,8 +1,8 @@
-import pytest
-import torch
 import torch.nn as nn
-from blink.gnn_extractor import encode_layer, model_to_graph
 from torchvision.models import resnet18
+
+from blink.gnn_extractor import encode_layer, model_to_graph
+
 
 def test_encode_conv_layer():
     conv = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)

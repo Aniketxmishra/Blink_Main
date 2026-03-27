@@ -1,5 +1,6 @@
 import json
-with open('colab_data_collector.ipynb', 'r', encoding='utf-8') as f:
+
+with open('colab_data_collector.ipynb', encoding='utf-8') as f:
     data = json.load(f)
 
 source = data['cells'][3]['source']

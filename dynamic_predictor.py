@@ -1,10 +1,11 @@
-import joblib
-import pandas as pd
-import numpy as np
 import os
 from datetime import datetime
+
+import joblib
+import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import train_test_split
+
 
 class DynamicPredictor:
     def __init__(self, model_path='models/gradient_boosting_model.joblib', 

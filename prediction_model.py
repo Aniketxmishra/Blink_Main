@@ -1,20 +1,18 @@
-import pandas as pd
-import numpy as np
-import os
 import json
-import glob
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression, Ridge, Lasso
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import make_pipeline
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import os
+import warnings
+
 import joblib
 import matplotlib.pyplot as plt
+import numpy as np
+import optuna
+import pandas as pd
 import seaborn as sns
 import xgboost as xgb
-import optuna
-import warnings
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+
 warnings.filterwarnings('ignore', category=UserWarning)
 
 def load_data(data_dir='data/enriched'):
@@ -45,7 +43,7 @@ def load_data(data_dir='data/enriched'):
     for json_file in json_files:
         file_path = os.path.join(data_dir, json_file)
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path) as f:
                 data = json.load(f)
                 all_data.extend(data)
         except Exception as e:
@@ -390,7 +388,7 @@ def main():
     model_path = save_best_model(models, bounds_models, best_model_name)
     
     print("Model training and evaluation complete!")
-    print(f"Results saved to results/ directory")
+    print("Results saved to results/ directory")
     print(f"Best model saved to {model_path}")
 
 if __name__ == "__main__":

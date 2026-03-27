@@ -13,12 +13,12 @@ Usage:
 """
 import os
 import sys
+
+import joblib
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import joblib
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from sklearn.model_selection import KFold
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -37,6 +37,7 @@ EXEC_FEATURES = [
 ]
 
 import json
+
 MEM_FEAT_JSON = os.path.join(MODEL_PATH, 'memory_model_features.json')
 if os.path.exists(MEM_FEAT_JSON):
     with open(MEM_FEAT_JSON) as f:
@@ -80,7 +81,7 @@ def calibration_report(df, feat_cols, y_col, lower_model, upper_model, label):
     avg_width = np.mean(y_upper - y_lower)
 
     print(f"\n{label}")
-    print(f"  Nominal coverage : 80%")
+    print("  Nominal coverage : 80%")
     print(f"  Actual coverage  : {coverage*100:.1f}%")
     print(f"  Avg CI width     : {avg_width:.1f} units")
     print(f"  Calibration gap  : {abs(coverage - 0.80)*100:.1f}%  "
@@ -102,7 +103,7 @@ def plot_reliability_diagram(results, save_path):
 
     targets  = [r['label'] for r in results]
     coverages= [r['coverage'] for r in results]
-    widths   = [r['avg_width'] for r in results]
+    [r['avg_width'] for r in results]
     colors   = ['#2ecc71' if abs(c - 0.80) < 0.05 else '#e74c3c' for c in coverages]
 
     # ── Panel 1: Coverage bars ────────────────────────────────────────────────
@@ -139,7 +140,7 @@ def plot_reliability_diagram(results, save_path):
     # ── Panel 3: Interval width vs actual value (exec time) ──────────────────
     ax = axes[2]
     widths_per_point = yu - yl
-    sc = ax.scatter(y, widths_per_point, c=inside.astype(float),
+    ax.scatter(y, widths_per_point, c=inside.astype(float),
                     cmap='RdYlGn', s=30, alpha=0.8, vmin=0, vmax=1)
     ax.set_xlabel('Actual Exec Time (ms)')
     ax.set_ylabel('CI Width (ms)')
@@ -169,7 +170,7 @@ def main():
     exec_lower = joblib.load(os.path.join(MODEL_PATH, 'execution_lower_model.joblib'))
     exec_upper = joblib.load(os.path.join(MODEL_PATH, 'execution_upper_model.joblib'))
 
-    avail_exec = [c for c in EXEC_FEATURES if c in df.columns]
+    [c for c in EXEC_FEATURES if c in df.columns]
     # execution_time_ms is on log scale in the model
     df['log_exec'] = np.log1p(df['execution_time_ms'])
 
@@ -191,7 +192,7 @@ def main():
     mem_lower = joblib.load(os.path.join(MODEL_PATH, 'memory_lower_model.joblib'))
     mem_upper = joblib.load(os.path.join(MODEL_PATH, 'memory_upper_model.joblib'))
 
-    mem_avail = [c for c in MEM_FEATURES if c in df.columns]
+    [c for c in MEM_FEATURES if c in df.columns]
     cov_m, width_m, y_m, yl_m, yu_m = calibration_report(
         df, MEM_FEATURES, 'peak_memory_mb', mem_lower, mem_upper,
         'Memory CI (MB)'

@@ -14,17 +14,18 @@ New features added:
   - flops_per_activation_mb     : compute intensity relative to activation cost
   - input_resolution_factor     : H*W from input_shape (spatial dimension proxy)
 """
-import os
 import ast
-import pandas as pd
-import numpy as np
-import joblib
-import optuna
-import xgboost as xgb
+import os
 import warnings
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+
+import joblib
 import matplotlib.pyplot as plt
+import numpy as np
+import optuna
+import pandas as pd
+import xgboost as xgb
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
 
 warnings.filterwarnings('ignore', category=UserWarning)
 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -183,7 +184,7 @@ def train_memory_model(df, target='peak_memory_mb', test_size=0.2, random_state=
     r2   = r2_score(y_test, y_pred)
 
     print(f"\n{'='*50}")
-    print(f"Memory Model Performance (Activation-Aware v2):")
+    print("Memory Model Performance (Activation-Aware v2):")
     print(f"  RMSE : {rmse:.2f} MB")
     print(f"  MAE  : {mae:.2f} MB")
     print(f"  R²   : {r2:.4f}")

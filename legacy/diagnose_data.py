@@ -1,4 +1,5 @@
 import glob
+
 import pandas as pd
 
 csv_files = glob.glob('data/raw/*.csv')

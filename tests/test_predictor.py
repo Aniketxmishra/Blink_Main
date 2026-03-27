@@ -1,7 +1,10 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
 import torch.nn as nn
-from unittest.mock import patch, MagicMock
+
 from blink import BlinkPredictor
+
 
 @pytest.fixture
 def mock_gpu_predictor():

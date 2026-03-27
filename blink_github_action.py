@@ -20,9 +20,9 @@ For LLMs, also specify:
 """
 
 import argparse
-import sys
 import json
 import os
+import sys
 
 
 def print_header():
@@ -171,7 +171,7 @@ def run_sla_check(args):
         gha_output = os.environ.get("GITHUB_OUTPUT", "")
         if gha_output:
             with open(gha_output, "a") as f:
-                f.write(f"blink_status=PASS\n")
+                f.write("blink_status=PASS\n")
                 f.write(f"blink_exec_upper_ms={exec_upper_ms:.2f}\n")
 
         sys.exit(0)
@@ -191,7 +191,7 @@ def run_sla_check(args):
         gha_output = os.environ.get("GITHUB_OUTPUT", "")
         if gha_output:
             with open(gha_output, "a") as f:
-                f.write(f"blink_status=FAIL\n")
+                f.write("blink_status=FAIL\n")
                 f.write(f"blink_violations={json.dumps(violations)}\n")
 
         sys.exit(1)

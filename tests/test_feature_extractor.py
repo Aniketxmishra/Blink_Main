@@ -1,8 +1,9 @@
 import pytest
-import torch
 import torch.nn as nn
-from torchvision.models import resnet18, mobilenet_v2
+from torchvision.models import mobilenet_v2, resnet18
+
 from blink.feature_extractor import ModelFeatureExtractor
+
 
 @pytest.fixture
 def extractor(tmp_path):
@@ -48,8 +49,9 @@ def test_depth_positive(extractor):
     assert features["model_depth"] > 0
 
 def test_process_all_profiling_data(extractor, tmp_path):
-    import pandas as pd
     import os
+
+    import pandas as pd
     csv_dir = tmp_path / "csvs"
     csv_dir.mkdir()
     df = pd.DataFrame({"model_name": ["resnet18"], "batch_size": [32], "exec_time_ms": [10.0], "memory_usage_mb": [100.0]})

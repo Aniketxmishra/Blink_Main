@@ -1,9 +1,8 @@
-from flask import Flask, request, jsonify, render_template
-import torch
-import torch.nn as nn
 import os
-import json
-from prediction_api import load_model, predict_for_custom_model, create_sample_model
+
+from flask import Flask, jsonify, render_template, request
+
+from prediction_api import create_sample_model, load_model, predict_for_custom_model
 
 app = Flask(__name__)
 

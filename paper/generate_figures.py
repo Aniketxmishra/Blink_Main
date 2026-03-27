@@ -1,6 +1,7 @@
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import seaborn as sns
 
 os.makedirs('figures', exist_ok=True)

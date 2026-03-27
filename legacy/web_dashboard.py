@@ -1,16 +1,16 @@
+import os
+
+import joblib
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 import streamlit as st
 import torch
 import torch.nn as nn
 import torchvision.models as models
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import joblib
-import os
-from PIL import Image
-import json
+
 from prediction_api import extract_model_features, predict_execution_time
+
 
 # Load the prediction model
 @st.cache_resource
@@ -23,7 +23,7 @@ def create_sample_model(num_layers=3, channels=16):
     """Create a sample CNN model for testing"""
     class SampleCNN(nn.Module):
         def __init__(self, num_layers=3, channels=16):
-            super(SampleCNN, self).__init__()
+            super().__init__()
             layers = []
             in_channels = 3
             
@@ -163,7 +163,7 @@ def show_prediction_page():
                 st.pyplot(fig)
                 
                 # Display model details
-                total_params = sum(p.numel() for p in model.parameters())
+                sum(p.numel() for p in model.parameters())
                 
                 # Get model size in MB
                 param_size = 0
@@ -172,7 +172,7 @@ def show_prediction_page():
                 buffer_size = 0
                 for buffer in model.buffers():
                     buffer_size += buffer.nelement() * buffer.element_size()
-                model_size_mb = (param_size + buffer_size) / (1024 ** 2)
+                (param_size + buffer_size) / (1024 ** 2)
     
     with col2:
         st.subheader("Model Information")
@@ -212,7 +212,7 @@ def show_historical_data():
     st.subheader("Execution Time by Model and Batch Size")
     
     fig, ax = plt.subplots(figsize=(12, 8))
-    models = df['model_name'].unique()
+    df['model_name'].unique()
     
     # Filter to common batch sizes
     common_batch_sizes = [1, 2, 4]

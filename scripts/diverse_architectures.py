@@ -1,15 +1,16 @@
-import torch
+import os
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import ViTModel, ViTConfig
 from diffusers import UNet2DModel
-import torch_geometric
-from torch_geometric.nn import GCNConv, GATConv
+from torch_geometric.nn import GCNConv
+from transformers import ViTConfig, ViTModel
+
 from prediction_api import load_model, predict_for_custom_model
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import os
+
 
 def create_vit_model():
     """Create a Vision Transformer model"""
@@ -28,7 +29,7 @@ def create_vit_model():
 class SimpleGNN(nn.Module):
     """Create a simple Graph Neural Network"""
     def __init__(self, in_channels=3, hidden_channels=16, out_channels=10):
-        super(SimpleGNN, self).__init__()
+        super().__init__()
         self.conv1 = GCNConv(in_channels, hidden_channels)
         self.conv2 = GCNConv(hidden_channels, out_channels)
         
@@ -54,7 +55,7 @@ def create_diffusion_model():
 class CNNTransformerHybrid(nn.Module):
     """Create a hybrid CNN-Transformer model"""
     def __init__(self, num_classes=10):
-        super(CNNTransformerHybrid, self).__init__()
+        super().__init__()
         # CNN feature extractor
         self.conv_layers = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=3, padding=1),
@@ -143,8 +144,8 @@ def profile_diverse_architectures():
     plt.tight_layout()
     plt.savefig('results/diverse_architectures_memory_usage.png')
     
-    print(f"\nTesting complete. Results saved to results/diverse_architectures_predictions.csv")
-    print(f"Visualizations saved to results/ directory")
+    print("\nTesting complete. Results saved to results/diverse_architectures_predictions.csv")
+    print("Visualizations saved to results/ directory")
 
 if __name__ == "__main__":
     profile_diverse_architectures() 

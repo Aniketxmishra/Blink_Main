@@ -1,8 +1,10 @@
-import pandas as pd
+import json
+import os
+
 import numpy as np
+import pandas as pd
 import xgboost as xgb
-from sklearn.model_selection import train_test_split
-import os, json
+
 
 def load_data(data_dir='data/enriched'):
     if not os.path.exists(data_dir): 
@@ -12,7 +14,7 @@ def load_data(data_dir='data/enriched'):
         if f.endswith('.csv'):
             all_data.extend(pd.read_csv(os.path.join(data_dir, f)).to_dict('records'))
         elif f.endswith('.json'):
-            with open(os.path.join(data_dir, f), 'r') as fp:
+            with open(os.path.join(data_dir, f)) as fp:
                 all_data.extend(json.load(fp))
     df = pd.DataFrame(all_data)
     if 'timing_cv' in df.columns: 

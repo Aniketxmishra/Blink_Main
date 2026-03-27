@@ -1,6 +1,6 @@
-import pandas as pd
 import glob
-import json
+
+import pandas as pd
 
 raw_files = glob.glob('data/raw/*.csv')
 if raw_files:

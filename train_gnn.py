@@ -1,17 +1,20 @@
-import os
 import glob
-import pandas as pd
+import os
+
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
+import torchvision.models as models
+from sklearn.model_selection import train_test_split
 from torch_geometric.data import Data, Dataset
 from torch_geometric.loader import DataLoader
-from sklearn.model_selection import train_test_split
+
 from blink.gnn_extractor import model_to_graph
 from blink.gnn_model import ArchitectureGNN
-import torchvision.models as models
+
 try:
-    from transformers import BertModel, RobertaModel, GPT2Model
+    from transformers import BertModel, GPT2Model, RobertaModel
     HAS_TRANSFORMERS = True
 except ImportError:
     HAS_TRANSFORMERS = False
@@ -19,7 +22,7 @@ except ImportError:
 
 class SimpleCNN(nn.Module):
     def __init__(self, num_layers=3, channels=16):
-        super(SimpleCNN, self).__init__()
+        super().__init__()
         layers = []
         in_channels = 3
         for i in range(num_layers):
@@ -38,34 +41,6 @@ class SimpleCNN(nn.Module):
         return x
 
 def get_model_instance(model_name):
-    # CNNs
-    if model_name == "resnet18": return models.resnet18(weights=None)
-    if model_name == "resnet50": return models.resnet50(weights=None)
-    if model_name == "mobilenet_v2": return models.mobilenet_v2(weights=None)
-    if model_name == "densenet121": return models.densenet121(weights=None)
-    if model_name == "vgg16": return models.vgg16(weights=None)
-    if model_name == "efficientnet_b0": return models.efficientnet_b0(weights=None)
-    if model_name == "regnet_y_400mf": return models.regnet_y_400mf(weights=None)
-    if model_name == "shufflenet_v2_x1_0": return models.shufflenet_v2_x1_0(weights=None)
-    if model_name == "squeezenet1_0": return models.squeezenet1_0(weights=None)
-    if model_name == "wide_resnet50_2": return models.wide_resnet50_2(weights=None)
-    if model_name == "convnext_tiny": return models.convnext_tiny(weights=None)
-    # New expanded set
-    if model_name == "efficientnet_v2_s": return models.efficientnet_v2_s(weights=None)
-    if model_name == "convnext_small": return models.convnext_small(weights=None)
-    if model_name == "convnext_base": return models.convnext_base(weights=None)
-    if model_name == "regnet_x_400mf": return models.regnet_x_400mf(weights=None)
-    if model_name == "regnet_y_800mf": return models.regnet_y_800mf(weights=None)
-    if model_name == "mnasnet1_0": return models.mnasnet1_0(weights=None)
-    if model_name == "googlenet": return models.googlenet(weights=None)
-    if model_name == "inception_v3": return models.inception_v3(weights=None)
-    if model_name == "resnext50_32x4d": return models.resnext50_32x4d(weights=None)
-    if model_name == "mobilenet_v3_large": return models.mobilenet_v3_large(weights=None)
-    if model_name == "mobilenet_v3_small": return models.mobilenet_v3_small(weights=None)
-    if model_name == "densenet169": return models.densenet169(weights=None)
-    if model_name == "densenet201": return models.densenet201(weights=None)
-    if model_name == "vgg19": return models.vgg19(weights=None)
-    
     # Transformers (only if library is available)
     if HAS_TRANSFORMERS:
         if model_name == "bert-base": return BertModel.from_pretrained("bert-base-uncased")
@@ -77,6 +52,13 @@ def get_model_instance(model_name):
     if model_name == "simple_cnn_5layers": return SimpleCNN(num_layers=5, channels=16)
     if model_name == "simple_cnn_3layers_wide": return SimpleCNN(num_layers=3, channels=32)
     
+    # Dynamically load any torchvision model to prevent 'Unknown model name' errors
+    if hasattr(models, model_name):
+        model_fn = getattr(models, model_name)
+        if model_name in ["googlenet", "inception_v3"]:
+            return model_fn(weights=None, init_weights=False)
+        return model_fn(weights=None)
+        
     raise ValueError(f"Unknown model name: {model_name}")
 
 def get_model_family(model_name):
@@ -95,7 +77,7 @@ def get_model_family(model_name):
 
 class GNNDataset(Dataset):
     def __init__(self, dataframe):
-        super(GNNDataset, self).__init__()
+        super().__init__()
         self.df = dataframe.reset_index(drop=True)
         
         # Cache graph generations so we don't recreate them for different batch sizes of the same model

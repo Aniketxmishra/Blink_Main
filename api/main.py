@@ -13,13 +13,10 @@ Interactive docs:
 """
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import time
-import logging
-from typing import Optional, List
-
-import numpy as np
 
 # Make sure the project root is on the path
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,12 +24,17 @@ sys.path.insert(0, ROOT)
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from api.schemas import (
-    ModelFeatures, NamedModelRequest, PredictRequest, OptimizeRequest,
-    NamedOptimizeRequest, PredictionResponse, OptimizeResponse,
-    BatchPoint, HealthResponse,
+    BatchPoint,
+    HealthResponse,
+    ModelFeatures,
+    NamedModelRequest,
+    NamedOptimizeRequest,
+    OptimizeRequest,
+    OptimizeResponse,
+    PredictionResponse,
+    PredictRequest,
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -114,7 +116,7 @@ def features_to_dict(f: ModelFeatures) -> dict:
     return d
 
 
-def _load_named_model(model_name: str, input_size: List[int] = None,
+def _load_named_model(model_name: str, input_size: list[int] = None,
                        batch_size: int = 32) -> ModelFeatures:
     """Extract features from a named pretrained model architecture."""
     key = model_name.lower().replace('-', '_')

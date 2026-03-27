@@ -1,12 +1,9 @@
-import streamlit as st
+
 import plotly.graph_objects as go
-import pandas as pd
-import numpy as np
-from datetime import datetime
-import torch
-from prediction_api import extract_model_features, predict_execution_time
+import streamlit as st
+
 from dynamic_gpu_predictor import DynamicGPUPredictor
-from batch_size_optimizer import BatchSizeOptimizer
+
 
 def recommend_batch_size(model_features):
     """Recommend optimal batch size based on model features"""

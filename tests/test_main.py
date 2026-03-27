@@ -1,7 +1,7 @@
-import pytest
-import sys
 from unittest.mock import patch
+
 from blink.__main__ import main, serve
+
 
 @patch('sys.argv', ['blink', '--version'])
 @patch('builtins.print')

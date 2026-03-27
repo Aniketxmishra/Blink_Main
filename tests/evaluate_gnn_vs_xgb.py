@@ -1,12 +1,14 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch_geometric.nn import GCNConv
-import numpy as np
-import pandas as pd
 import warnings
-from prediction_api import predict_with_gnn, extract_model_features, load_model, predict_execution_time
-from torchvision.models import shufflenet_v2_x1_0, squeezenet1_0, resnet18, mobilenet_v3_small
+
+import pandas as pd
+from torchvision.models import mobilenet_v3_small, resnet18, shufflenet_v2_x1_0, squeezenet1_0
+
+from prediction_api import (
+    extract_model_features,
+    load_model,
+    predict_execution_time,
+    predict_with_gnn,
+)
 
 warnings.filterwarnings("ignore")
 

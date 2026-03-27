@@ -1,17 +1,15 @@
-import streamlit as st
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import pandas as pd
-import numpy as np
-import time
 import threading
+import time
 from datetime import datetime
-import torch
-import psutil
+
 import GPUtil
-from prediction_api import extract_model_features, predict_execution_time
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
+from plotly.subplots import make_subplots
+
 from dynamic_gpu_predictor import DynamicGPUPredictor
-from batch_size_optimizer import BatchSizeOptimizer
+
 
 # Utility Functions
 def get_current_gpu_utilization():

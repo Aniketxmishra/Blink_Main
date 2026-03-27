@@ -1,8 +1,10 @@
 # dynamic_gpu_predictor.py
-from dynamic_predictor import DynamicPredictor
 from batch_size_optimizer import BatchSizeOptimizer
-from workload_scheduler import WorkloadScheduler
+
+from dynamic_predictor import DynamicPredictor
 from performance_monitor import PerformanceMonitor
+from workload_scheduler import WorkloadScheduler
+
 
 class DynamicGPUPredictor:
     def __init__(self, model_path='models/gradient_boosting_model.joblib', 

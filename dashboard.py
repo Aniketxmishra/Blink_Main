@@ -1,14 +1,16 @@
-import streamlit as st
-import pandas as pd
+import os
+import time
+
 import numpy as np
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
 import torch
 import torch.nn as nn
 import torchvision.models as models
-import os
-import time
+from plotly.subplots import make_subplots
+
 from blink.gpu_predictor import GPUPredictor
 from blink.model_analyser import ModelAnalyzer
 
@@ -44,7 +46,7 @@ def create_sample_model(num_layers=3, channels=16):
     """Create a sample CNN model for testing"""
     class SampleCNN(nn.Module):
         def __init__(self, num_layers=3, channels=16):
-            super(SampleCNN, self).__init__()
+            super().__init__()
             layers = []
             in_channels = 3
             
@@ -580,7 +582,7 @@ def show_batch_optimizer(predictor, analyzer, memory_limit):
 
         # ── Render results from session_state (works across slider moves) ────
         optimization_result = st.session_state.get('opt_result')
-        model_name_label    = st.session_state.get('opt_model_name_label', model_name)
+        st.session_state.get('opt_model_name_label', model_name)
 
         if optimization_result is not None:
             if optimization_result.get('error'):
@@ -891,7 +893,7 @@ def show_model_comparison():
                     continue
                     
                 exec_time = pivot.loc[model, batch_size]
-                ideal_time = base_time * batch_size
+                base_time * batch_size
                 efficiency = base_time / (exec_time / batch_size)
                 
                 scaling_data.append({
@@ -1030,7 +1032,7 @@ def show_performance_monitor():
             # ── Big metric cards ──────────────────────────────────────────────
             c1, c2, c3, c4 = st.columns(4)
             with c1:
-                color = "normal" if stats['util_gpu'] < 80 else "inverse"
+                "normal" if stats['util_gpu'] < 80 else "inverse"
                 st.metric("GPU Utilization", f"{stats['util_gpu']} %",
                           delta=None)
                 # manual color bar
@@ -1227,7 +1229,8 @@ def show_calibration_page():
     with col1:
         if st.button("Run Calibration Check", type="primary"):
             with st.spinner("Running calibration analysis..."):
-                import subprocess, sys
+                import subprocess
+                import sys
                 result = subprocess.run(
                     [sys.executable, "scripts/calibration_check.py"],
                     capture_output=True, text=True, cwd=os.getcwd()
