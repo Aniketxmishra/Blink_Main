@@ -1,4 +1,4 @@
-﻿"""
+"""
 scripts/calibration_check.py  —  Priority 2: Interval Calibration
 
 Checks whether the 80% confidence intervals produced by Blink's
@@ -11,6 +11,7 @@ Generates:
 Usage:
   python scripts/calibration_check.py
 """
+import json
 import os
 import sys
 
@@ -36,7 +37,7 @@ EXEC_FEATURES = [
     'total_conv_params', 'total_fc_params', 'model_depth', 'model_size_mb'
 ]
 
-import json
+
 
 MEM_FEAT_JSON = os.path.join(MODEL_PATH, 'memory_model_features.json')
 if os.path.exists(MEM_FEAT_JSON):
@@ -128,7 +129,8 @@ def plot_reliability_diagram(results, save_path):
     ax.scatter(y[inside],  y[inside],  color='#2ecc71', s=20, alpha=0.7, label='Inside CI')
     ax.scatter(y[~inside], y[~inside], color='#e74c3c', s=30, alpha=0.9, label='Outside CI',
                marker='x', linewidths=1.5)
-    lo = y.min(); hi = y.max()
+    lo = y.min()
+    hi = y.max()
     ax.plot([lo, hi], [lo, hi], 'k--', lw=1)
     ax.fill_between([lo, hi], [lo, hi], [hi, hi], alpha=0.05, color='green')
     ax.set_xlabel('Actual Exec Time (ms)')

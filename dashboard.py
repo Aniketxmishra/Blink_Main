@@ -34,7 +34,7 @@ def load_model_data():
             try:
                 df = pd.read_csv(os.path.join(BASE_DIR, 'data', 'raw', file))
                 data_files.append(df)
-            except:
+            except Exception:
                 pass
     
     if data_files:

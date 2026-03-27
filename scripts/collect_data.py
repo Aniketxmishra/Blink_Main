@@ -194,7 +194,7 @@ def profile_causal_llms(profiler, batch_sizes, seq_lengths, save_dir):
     Also sweeps quantization: fp32, fp16, int8 (bitsandbytes), int4 (bitsandbytes).
     """
     try:
-        from transformers import AutoModelForCausalLM, AutoTokenizer
+        from transformers import AutoModelForCausalLM
     except ImportError:
         print("transformers not installed. Skipping LLM profiling.")
         return []

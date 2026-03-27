@@ -93,7 +93,7 @@ def main():
         import torchvision.models as models
         model = models.resnet18(weights=None)
         print("Loaded ResNet18 from torchvision")
-    except:
+    except Exception:
         # Fallback to loading from the cloned repository
         model = load_github_model(model_path, "ResNet")
         # Initialize with appropriate parameters for ResNet18

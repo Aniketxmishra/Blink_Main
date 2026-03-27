@@ -24,7 +24,7 @@ def get_current_gpu_utilization():
                 'memory_total': gpu.memoryTotal,
                 'temperature': gpu.temperature
             }
-    except:
+    except Exception:
         return {
             'gpu_util': 0,
             'memory_used': 0,

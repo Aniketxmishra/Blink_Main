@@ -42,16 +42,19 @@ def get_model_instance(model_name):
         except TypeError:
             try:
                 return model_fn(pretrained=False), input_shape
-            except:
+            except Exception:
                 return model_fn(), input_shape
         except Exception:
             pass
 
     
     # Custom CNNs
-    if model_name == 'simple_cnn_3layers': return SimpleCNN(num_layers=3, channels=16), (3, 224, 224)
-    if model_name == 'simple_cnn_5layers': return SimpleCNN(num_layers=5, channels=16), (3, 224, 224)
-    if model_name == 'simple_cnn_3layers_wide': return SimpleCNN(num_layers=3, channels=32), (3, 224, 224)
+    if model_name == 'simple_cnn_3layers':
+        return SimpleCNN(num_layers=3, channels=16), (3, 224, 224)
+    if model_name == 'simple_cnn_5layers':
+        return SimpleCNN(num_layers=5, channels=16), (3, 224, 224)
+    if model_name == 'simple_cnn_3layers_wide':
+        return SimpleCNN(num_layers=3, channels=32), (3, 224, 224)
     
     # Diverse
     try:
@@ -66,7 +69,7 @@ def get_model_instance(model_name):
             return diverse_architectures.CNNTransformerHybrid(), (3, 224, 224)
         if model_name == 'simple_gnn':
             return None, None # skip for shape complexity
-    except:
+    except Exception:
         pass
         
     # Transformers
@@ -82,7 +85,7 @@ def get_model_instance(model_name):
             elif model_name == 'gpt2':
                 config = AutoConfig.from_pretrained('gpt2')
                 return AutoModel.from_config(config), (128,)
-        except:
+        except Exception:
             pass
 
     return None, None
@@ -94,7 +97,8 @@ def main():
         try:
             df = pd.read_csv(f)
             all_data.append(df)
-        except: pass
+        except Exception:
+            pass
         
     if not all_data:
         print("No raw data found!")

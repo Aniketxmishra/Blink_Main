@@ -54,7 +54,7 @@ def load_historical_data():
             try:
                 df = pd.read_csv(f'data/raw/{file}')
                 data_files.append(df)
-            except:
+            except Exception:
                 pass
     
     if data_files:

@@ -1,4 +1,4 @@
-﻿"""
+"""
 train_memory_model.py  —  Activation-Aware Memory Model Training
 
 Key fix (Priority 1):
@@ -216,12 +216,14 @@ def visualize_results(model, X_test, y_test, feature_cols):
     # Actual vs Predicted
     ax = axes[0]
     ax.scatter(y_test, y_pred, alpha=0.7, edgecolors='k', linewidth=0.5)
-    lo = min(y_test.min(), y_pred.min()); hi = max(y_test.max(), y_pred.max())
+    lo = min(y_test.min(), y_pred.min())
+    hi = max(y_test.max(), y_pred.max())
     ax.plot([lo, hi], [lo, hi], 'r--', lw=2, label='Perfect prediction')
     ax.set_xlabel('Actual Peak Memory (MB)')
     ax.set_ylabel('Predicted Peak Memory (MB)')
     ax.set_title('Memory Model v2 — Actual vs Predicted')
-    ax.legend(); ax.grid(True, alpha=0.3)
+    ax.legend()
+    ax.grid(True, alpha=0.3)
 
     # Feature Importance
     ax = axes[1]

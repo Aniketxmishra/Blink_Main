@@ -111,12 +111,18 @@ def get_gpu_info(quantization_bits: int = 32) -> dict:
         major, minor = nvml.nvmlDeviceGetCudaComputeCapability(handle)
         compute_capability = f"{major}.{minor}"
     except (AttributeError, nvml.NVMLError):
-        if "K80"  in name: compute_capability = "3.7"
-        elif "P100" in name: compute_capability = "6.0"
-        elif "V100" in name: compute_capability = "7.0"
-        elif "T4"   in name: compute_capability = "7.5"
-        elif "A100" in name: compute_capability = "8.0"
-        elif "H100" in name: compute_capability = "9.0"
+        if "K80" in name:
+            compute_capability = "3.7"
+        elif "P100" in name:
+            compute_capability = "6.0"
+        elif "V100" in name:
+            compute_capability = "7.0"
+        elif "T4" in name:
+            compute_capability = "7.5"
+        elif "A100" in name:
+            compute_capability = "8.0"
+        elif "H100" in name:
+            compute_capability = "9.0"
 
     # Get clock speeds
     try:

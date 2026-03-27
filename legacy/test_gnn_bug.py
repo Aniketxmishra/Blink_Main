@@ -9,7 +9,7 @@ model = ArchitectureGNN()
 try:
     model.load_state_dict(torch.load('models/gnn_predictor.pth', map_location='cpu'))
     print("Loaded pre-trained weights.")
-except:
+except Exception:
     print("Using untrained weights.")
 model.eval()
 

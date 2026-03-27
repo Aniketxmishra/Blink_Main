@@ -13,7 +13,7 @@ if files:
     for f in files:
         try:
             dfs.append(pd.read_csv(f))
-        except:
+        except Exception:
             pass
     if dfs:
         df = pd.concat(dfs, ignore_index=True)

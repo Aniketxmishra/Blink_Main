@@ -1,4 +1,4 @@
-﻿"""
+"""
 api/main.py — Blink REST API
 ================================
 Exposes Blink's prediction and optimization capabilities over HTTP so any
@@ -22,10 +22,10 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException, Request, status  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
-from api.schemas import (
+from api.schemas import (  # noqa: E402
     BatchPoint,
     HealthResponse,
     ModelFeatures,

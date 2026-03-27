@@ -43,14 +43,20 @@ class SimpleCNN(nn.Module):
 def get_model_instance(model_name):
     # Transformers (only if library is available)
     if HAS_TRANSFORMERS:
-        if model_name == "bert-base": return BertModel.from_pretrained("bert-base-uncased")
-        if model_name == "roberta-base": return RobertaModel.from_pretrained("roberta-base")
-        if model_name == "gpt2": return GPT2Model.from_pretrained("gpt2")
+        if model_name == "bert-base":
+            return BertModel.from_pretrained("bert-base-uncased")
+        if model_name == "roberta-base":
+            return RobertaModel.from_pretrained("roberta-base")
+        if model_name == "gpt2":
+            return GPT2Model.from_pretrained("gpt2")
     
     # Custom
-    if model_name == "simple_cnn_3layers": return SimpleCNN(num_layers=3, channels=16)
-    if model_name == "simple_cnn_5layers": return SimpleCNN(num_layers=5, channels=16)
-    if model_name == "simple_cnn_3layers_wide": return SimpleCNN(num_layers=3, channels=32)
+    if model_name == "simple_cnn_3layers":
+        return SimpleCNN(num_layers=3, channels=16)
+    if model_name == "simple_cnn_5layers":
+        return SimpleCNN(num_layers=5, channels=16)
+    if model_name == "simple_cnn_3layers_wide":
+        return SimpleCNN(num_layers=3, channels=32)
     
     # Dynamically load any torchvision model to prevent 'Unknown model name' errors
     if hasattr(models, model_name):

@@ -1,3 +1,5 @@
+import pprint
+
 import torchvision.models as models
 
 from blink.gpu_predictor import GPUPredictor
@@ -9,8 +11,7 @@ print(f"Feature count: {len(predictor.feature_cols)} - OK")
 
 print("\n2. Verifying custom model prediction (also checks XGBoost column mismatch)...")
 result = predictor.predict_for_custom_model(models.resnet50(), batch_size=16)
-print("Prediction Result:")
-import pprint
+
 
 pprint.pprint(result)
 

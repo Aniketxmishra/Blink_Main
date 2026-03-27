@@ -80,7 +80,7 @@ class DynamicPredictor:
                 try:
                     df = pd.read_csv(os.path.join(raw_data_dir, filename))
                     all_data.append(df)
-                except:
+                except Exception:
                     pass
         
         if not all_data:

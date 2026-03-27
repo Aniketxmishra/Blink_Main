@@ -114,6 +114,7 @@ include = ["blink*"]
 # ── Ruff (linter) ─────────────────────────────────────────────────────────────
 [tool.ruff]
 line-length = 100
+exclude = ["colab_data_collector.ipynb", ".git", "__pycache__", "dist", "build"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
