@@ -3,7 +3,7 @@
 [![PyPI version](https://badge.fury.io/py/blink-gpu.svg)](https://badge.fury.io/py/blink-gpu)
 [![CI](https://github.com/Aniketxmishra/Blink_Main/actions/workflows/ci.yml/badge.svg)](https://github.com/Aniketxmishra/Blink_Main/actions/workflows/ci.yml)
 ![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 **Predict GPU execution time and memory usage of any PyTorch model — before you run it.**
 
@@ -189,6 +189,6 @@ python scripts/generate_paper_figures.py
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+Apache 2.0 — see [LICENSE](LICENSE) for details.
 
 Built by [Aniket Mishra](https://github.com/Aniketxmishra) · [PyPI](https://pypi.org/project/blink-gpu/)
