@@ -4,6 +4,7 @@
 [![CI](https://github.com/Aniketxmishra/Blink_Main/actions/workflows/ci.yml/badge.svg)](https://github.com/Aniketxmishra/Blink_Main/actions/workflows/ci.yml)
 ![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/blink-gpu?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/blink-gpu)
 
 **Predict GPU execution time and memory usage of any PyTorch model — before you run it.**
 
